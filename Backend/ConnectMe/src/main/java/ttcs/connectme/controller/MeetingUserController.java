@@ -28,4 +28,11 @@ public class MeetingUserController {
                 .result(meetingUserService.updateById(id, request))
                 .build();
     }
+
+    @PutMapping(value = "/meeting/{meetingId}/user/{userId}")
+    public ApiResponse<MeetingUserResponse> updateByMeetingIdAndUserId (@RequestBody MeetingUserRequest request, @PathVariable("meetingId") Long meetingId, @PathVariable("userId") Long userId) {
+        return ApiResponse.<MeetingUserResponse>builder()
+                .result(meetingUserService.updateByMeetingIdAndUserId(meetingId, userId, request))
+                .build();
+    }
 }
