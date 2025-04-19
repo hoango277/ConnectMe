@@ -41,12 +41,6 @@ public class MeetingUserService {
         meetingUser.setMeeting(meeting);
         meetingUser.setUser(user);
         meetingUser.setInvitationStatus(InvitationStatus.PENDING);
-        meetingUser.setIsOnline(true);
-        meetingUser.setIsMuted(false);
-        meetingUser.setIsCameraOn(true);
-        meetingUser.setIsScreenSharing(false);
-        meetingUser.setIsSpeaking(false);
-        meetingUser.setLastHeartbeat(LocalDateTime.now());
 
         return meetingUserMapper.toResponse(meetingUserRepository.save(meetingUser));
     }
@@ -55,6 +49,24 @@ public class MeetingUserService {
         MeetingUserEntity meetingUser = meetingUserRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new AppException(ErrorCode.MEETING_USER_NOT_FOUND));
         meetingUserMapper.update(meetingUser, request);
+
+        return meetingUserMapper.toResponse(meetingUserRepository.save(meetingUser));
+    }
+
+    public MeetingUserResponse updateByMeetingIdAndUserId (Long meetingId, Long userId, MeetingUserRequest request) {
+        MeetingUserEntity meetingUser = meetingUserRepository.findByMeetingIdAndUserIdAndIsDeletedFalse(meetingId, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.MEETING_USER_NOT_FOUND));
+
+        meetingUserMapper.update(meetingUser, request);
+        if (meetingUser.getInvitationStatus().equals(InvitationStatus.ACCEPTED)) {
+            meetingUser.setIsOnline(true);
+            meetingUser.setIsMuted(false);
+            meetingUser.setIsCameraOn(true);
+            meetingUser.setIsScreenSharing(false);
+            meetingUser.setIsSpeaking(false);
+            meetingUser.setJoinTime(LocalDateTime.now());
+            meetingUser.setLastHeartbeat(LocalDateTime.now());
+        }
 
         return meetingUserMapper.toResponse(meetingUserRepository.save(meetingUser));
     }
