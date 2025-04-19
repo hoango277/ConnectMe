@@ -36,10 +36,11 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity
                 .authorizeHttpRequests(request ->
-                        request.requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINT_POST).permitAll()
-                                .requestMatchers(HttpMethod.GET, PUBLIC_ENDPOINT_GET).permitAll()
-                                .requestMatchers("/css/**", "/js/**", "/images/**", "/ws/**").permitAll()
-                                .anyRequest().authenticated()
+//                        request.requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINT_POST).permitAll()
+//                                .requestMatchers(HttpMethod.GET, PUBLIC_ENDPOINT_GET).permitAll()
+//                                .requestMatchers("/css/**", "/js/**", "/images/**", "/ws/**").permitAll()
+//                                .anyRequest().authenticated()
+                                request.anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtCookieFilter, UsernamePasswordAuthenticationFilter.class)
                 .csrf(AbstractHttpConfigurer::disable)

@@ -1,9 +1,7 @@
 package ttcs.connectme.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import lombok.experimental.FieldDefaults;
 import ttcs.connectme.enums.InvitationStatus;
 import ttcs.connectme.enums.Role;
@@ -13,9 +11,12 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Table(name = "meeting_participants")
-public class MeetingParticipantEntity extends BaseEntity {
+@Table(name = "meeting_user")
+public class MeetingUserEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,7 +32,7 @@ public class MeetingParticipantEntity extends BaseEntity {
 
     @Column(name = "role", nullable = false)
     @Enumerated(EnumType.STRING)
-    Role role = Role.PARTICIPANT;
+    Role role;
 
     @Column(name = "join_time")
     LocalDateTime joinTime;
