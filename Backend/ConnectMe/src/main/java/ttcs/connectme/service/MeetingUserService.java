@@ -70,4 +70,15 @@ public class MeetingUserService {
 
         return meetingUserMapper.toResponse(meetingUserRepository.save(meetingUser));
     }
+
+    public void deleteByMeetingIdAndUserId (Long meetingId, Long userId) {
+        MeetingUserEntity meetingUser = meetingUserRepository.findByMeetingIdAndUserIdAndIsDeletedFalse(meetingId, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.MEETING_USER_NOT_FOUND));
+
+        meetingUser.setIsDeleted(true);
+        meetingUser.setDeletedAt(LocalDateTime.now());
+        meetingUser.setDeletedBy(null);
+
+        meetingUserRepository.save(meetingUser);
+    }
 }

@@ -35,4 +35,9 @@ public class MeetingUserController {
                 .result(meetingUserService.updateByMeetingIdAndUserId(meetingId, userId, request))
                 .build();
     }
+
+    @DeleteMapping(value = "/meeting/{meetingId}/user/{userId}")
+    public void deleteByMeetingIdAndUserId (@PathVariable("meetingId") Long meetingId, @PathVariable("userId") Long userId) {
+        meetingUserService.deleteByMeetingIdAndUserId(meetingId, userId);
+    }
 }
