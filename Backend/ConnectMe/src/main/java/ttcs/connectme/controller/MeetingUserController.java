@@ -9,6 +9,8 @@ import ttcs.connectme.dto.response.ApiResponse;
 import ttcs.connectme.dto.response.MeetingUserResponse;
 import ttcs.connectme.service.MeetingUserService;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -39,5 +41,12 @@ public class MeetingUserController {
     @DeleteMapping(value = "/meeting/{meetingId}/user/{userId}")
     public void deleteByMeetingIdAndUserId (@PathVariable("meetingId") Long meetingId, @PathVariable("userId") Long userId) {
         meetingUserService.deleteByMeetingIdAndUserId(meetingId, userId);
+    }
+
+    @GetMapping(value = "/meeting/{meetingId}/all")
+    public ApiResponse<List<MeetingUserResponse>> getAllByMeetingId (@PathVariable("meetingId") Long meetingId) {
+        return ApiResponse.<List<MeetingUserResponse>>builder()
+                .result(meetingUserService.getAllByMeetingId(meetingId))
+                .build();
     }
 }

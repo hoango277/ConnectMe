@@ -18,6 +18,7 @@ import ttcs.connectme.repository.MeetingUserRepository;
 import ttcs.connectme.repository.UserRepository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -80,5 +81,10 @@ public class MeetingUserService {
         meetingUser.setDeletedBy(null);
 
         meetingUserRepository.save(meetingUser);
+    }
+
+    public List<MeetingUserResponse> getAllByMeetingId (Long meetingId) {
+        return meetingUserRepository.getAllByMeetingIdAndIsDeletedFalse(meetingId)
+                .stream().map(meetingUserMapper::toResponse).toList();
     }
 }
