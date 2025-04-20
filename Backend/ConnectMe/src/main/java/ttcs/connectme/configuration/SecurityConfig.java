@@ -30,7 +30,7 @@ public class SecurityConfig {
     private JwtCookieFilter jwtCookieFilter;
 
     private final String[] PUBLIC_ENDPOINT_POST = {};
-    private final String[] PUBLIC_ENDPOINT_GET = {};
+    private final String[] PUBLIC_ENDPOINT_GET = {"/api/meeting"};
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
