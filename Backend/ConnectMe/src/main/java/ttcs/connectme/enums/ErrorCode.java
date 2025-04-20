@@ -1,0 +1,23 @@
+package ttcs.connectme.enums;
+
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
+public enum ErrorCode {
+    UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error", HttpStatus.INTERNAL_SERVER_ERROR),
+    INVALID_KEY(1000, "Key invalid", HttpStatus.BAD_REQUEST),
+    UNAUTHORIZED(1015, "You do not have permission", HttpStatus.FORBIDDEN);
+
+    int code;
+    String message;
+    HttpStatusCode statusCode;
+}
