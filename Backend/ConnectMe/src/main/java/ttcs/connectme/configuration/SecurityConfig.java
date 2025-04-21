@@ -29,7 +29,7 @@ public class SecurityConfig {
     @Autowired
     private JwtCookieFilter jwtCookieFilter;
 
-    private final String[] PUBLIC_ENDPOINT_POST = {};
+    private final String[] PUBLIC_ENDPOINT_POST = {"/api/auth/register"};
     private final String[] PUBLIC_ENDPOINT_GET = {};
 
     @Bean
