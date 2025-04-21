@@ -13,14 +13,16 @@ import org.springframework.http.HttpStatusCode;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public enum ErrorCode {
-    UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error", HttpStatus.INTERNAL_SERVER_ERROR),
-    INVALID_KEY(1000, "Key invalid", HttpStatus.BAD_REQUEST),
-    USERNAME_EXISTED(1001, "Username existed", HttpStatus.BAD_REQUEST),
-    EMAIL_EXISTED(1002, "Email existed", HttpStatus.BAD_REQUEST),
-    UNAUTHORIZED(1015, "You do not have permission", HttpStatus.FORBIDDEN),
-    RESOURCE_NOT_FOUND(4040, "Resource not found", HttpStatus.NOT_FOUND);
+    UNCATEGORIZED_EXCEPTION("Uncategorized error", HttpStatus.INTERNAL_SERVER_ERROR),
+    INVALID_KEY("Key invalid", HttpStatus.BAD_REQUEST),
+    USERNAME_EXISTED("Username existed", HttpStatus.BAD_REQUEST),
+    EMAIL_EXISTED("Email existed", HttpStatus.BAD_REQUEST),
+    UNAUTHORIZED("You do not have permission", HttpStatus.FORBIDDEN),
+    MEETING_NOT_FOUND("Meeting not found", HttpStatus.NOT_FOUND),
+    USER_NOT_FOUND("User not found", HttpStatus.NOT_FOUND),
+    USER_ALREADY_IN_MEETING("User is already in the meeting", HttpStatus.BAD_REQUEST),
+    MEETING_USER_NOT_FOUND("Cannot find user in this meeting", HttpStatus.NOT_FOUND);
 
-    int code;
     String message;
     HttpStatusCode statusCode;
 }
