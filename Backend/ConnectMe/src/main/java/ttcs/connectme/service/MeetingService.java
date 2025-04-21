@@ -53,18 +53,21 @@ public class MeetingService {
         meeting.setMeetingCode(meetingCode);
         meeting.setPassword(request.getPassword());
         meeting.setHost(host);
-        meeting.setActualStart(
-                request.getActualStart() != null ? request.getActualStart() : LocalDateTime.now()
-        );
-        meeting.setActualEnd(meeting.getActualStart().plusMinutes(30));
-        meeting.setMeetingStatus(MeetingStatus.SCHEDULED);
+        LocalDateTime startTime;
+        if (request.getActualStart() != null) {
+            startTime = request.getActualStart();
+            meeting.setMeetingStatus(MeetingStatus.SCHEDULED);
+        } else {
+            startTime = LocalDateTime.now();
+            meeting.setMeetingStatus(MeetingStatus.ONGOING);
+        }
+        meeting.setActualStart(startTime);
+        meeting.setActualEnd(startTime.plusMinutes(30));
         meeting.setCurrentParticipants(0);
         meeting.setTotalParticipants(0);
         meeting.setChatMessageCount(0);
 
         MeetingEntity savedMeeting = meetingRepository.save(meeting);
-
-
 
         MeetingResponse response = meetingMapper.toResponse(savedMeeting);
         response.setHostId(request.getHostId());
@@ -90,4 +93,58 @@ public class MeetingService {
                 .build();
     }
 
+    public ApiResponse<MeetingResponse> startMeeting(Long id) {
+        MeetingEntity meeting = meetingRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.MEETING_NOT_FOUND));
+
+        if (meeting.getMeetingStatus() != MeetingStatus.SCHEDULED) {
+            return ApiResponse.<MeetingResponse>builder()
+                    .code(400)
+                    .message("Only scheduled meetings can be started")
+                    .build();
+        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime scheduledStart = meeting.getActualStart();
+
+        if (scheduledStart.isAfter(now)) {
+            meeting.setActualStart(now);
+            meeting.setActualEnd(now.plusMinutes(30));
+        }
+        meeting.setMeetingStatus(MeetingStatus.ONGOING);
+        MeetingEntity updatedMeeting = meetingRepository.save(meeting);
+        MeetingResponse response = meetingMapper.toResponse(updatedMeeting);
+        response.setHostId(meeting.getHost().getId());
+
+        return ApiResponse.<MeetingResponse>builder()
+                .code(200)
+                .message("Meeting started successfully")
+                .result(response)
+                .build();
+    }
+
+    public ApiResponse<MeetingResponse> endMeeting(Long id) {
+        MeetingEntity meeting = meetingRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.MEETING_NOT_FOUND));
+
+        if (meeting.getMeetingStatus() != MeetingStatus.ONGOING) {
+            return ApiResponse.<MeetingResponse>builder()
+                    .code(400)
+                    .message("Only ongoing meetings can be ended")
+                    .build();
+        }
+
+        meeting.setMeetingStatus(MeetingStatus.ENDED);
+        meeting.setActualEnd(LocalDateTime.now());
+        meeting.setCurrentParticipants(0);
+
+        MeetingEntity updatedMeeting = meetingRepository.save(meeting);
+        MeetingResponse response = meetingMapper.toResponse(updatedMeeting);
+        response.setHostId(meeting.getHost().getId());
+
+        return ApiResponse.<MeetingResponse>builder()
+                .code(200)
+                .message("Meeting ended successfully")
+                .result(response)
+                .build();
+    }
 }
