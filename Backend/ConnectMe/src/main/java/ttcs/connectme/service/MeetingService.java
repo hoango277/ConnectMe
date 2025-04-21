@@ -9,8 +9,9 @@ import ttcs.connectme.dto.response.ApiResponse;
 import ttcs.connectme.dto.response.MeetingResponse;
 import ttcs.connectme.entity.MeetingEntity;
 import ttcs.connectme.entity.UserEntity;
+import ttcs.connectme.enums.ErrorCode;
 import ttcs.connectme.enums.MeetingStatus;
-import ttcs.connectme.exception.ResourceNotFoundException;
+import ttcs.connectme.exception.AppException;
 import ttcs.connectme.mapper.MeetingMapper;
 import ttcs.connectme.repository.MeetingRepository;
 import ttcs.connectme.repository.UserRepository;
@@ -28,9 +29,21 @@ public class MeetingService {
     private final MeetingMapper meetingMapper;
     private final MeetingCodeGenerator codeGenerator;
 
+    private String generateUniqueMeetingCode() {
+        String code;
+        boolean isUnique = false;
+
+        do {
+            code = codeGenerator.generateMeetingCode();
+            isUnique = !meetingRepository.existsByMeetingCode(code);
+        } while (!isUnique);
+
+        return code;
+    }
+
     public ApiResponse<MeetingResponse> createMeeting(MeetingRequest request) {
         UserEntity host = userRepository.findById(request.getHostId())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.getHostId()));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         String meetingCode = generateUniqueMeetingCode();
 
@@ -57,24 +70,24 @@ public class MeetingService {
         response.setHostId(request.getHostId());
 
         return ApiResponse.<MeetingResponse>builder()
+                .code(200)
+                .message("Success")
                 .result(response)
                 .build();
     }
 
-    private MeetingEntity findMeetingById(Long id) {
-        return meetingRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Meeting", "id", id));
+    @Transactional(readOnly = true)
+    public ApiResponse<MeetingResponse> getMeetingByCode(String meetingCode) {
+        MeetingEntity meeting = meetingRepository.findByMeetingCode(meetingCode)
+                .orElseThrow(() -> new AppException(ErrorCode.MEETING_NOT_FOUND));
+
+        MeetingResponse response = meetingMapper.toResponse(meeting);
+        response.setHostId(meeting.getHost().getId());
+        return ApiResponse.<MeetingResponse>builder()
+                .code(200)
+                .message("Success")
+                .result(response)
+                .build();
     }
 
-    private String generateUniqueMeetingCode() {
-        String code;
-        boolean isUnique = false;
-
-        do {
-            code = codeGenerator.generateMeetingCode();
-            isUnique = !meetingRepository.existsByMeetingCode(code);
-        } while (!isUnique);
-
-        return code;
-    }
 }

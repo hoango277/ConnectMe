@@ -17,6 +17,11 @@ public class MeetingController {
 
     @PostMapping("/meeting")
     public ApiResponse<MeetingResponse> createMeeting(@RequestBody MeetingRequest meetingRequest){
-        return ApiResponse.<MeetingResponse>builder().result(meetingService.createMeeting(meetingRequest).getResult()).build();
+        return meetingService.createMeeting(meetingRequest);
+    }
+
+    @GetMapping("/meeting/code/{meetingCode}")
+    public ApiResponse<MeetingResponse> getMeetingByCode(@PathVariable String meetingCode){
+        return meetingService.getMeetingByCode(meetingCode);
     }
 }
