@@ -36,12 +36,6 @@ public class MeetingEntity extends BaseEntity {
     @JoinColumn(name = "host_id", nullable = false)
     UserEntity host;
 
-    @Column(name = "scheduled_start")
-    LocalDateTime scheduledStart;
-
-    @Column(name = "scheduled_end")
-    LocalDateTime scheduledEnd;
-
     @Column(name = "actual_start")
     LocalDateTime actualStart;
 
