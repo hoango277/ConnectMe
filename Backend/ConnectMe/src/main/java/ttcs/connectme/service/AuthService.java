@@ -6,6 +6,7 @@ import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.Payload;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jwt.JWTClaimsSet;
+import lombok.RequiredArgsConstructor;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +19,7 @@ import ttcs.connectme.dto.response.UserCreateResponse;
 import ttcs.connectme.entity.UserEntity;
 import ttcs.connectme.enums.ErrorCode;
 import ttcs.connectme.exception.AppException;
+import ttcs.connectme.mapper.UserMapper;
 import ttcs.connectme.repository.UserRepository;
 
 import java.time.Instant;
@@ -27,18 +29,15 @@ import java.util.UUID;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class AuthService {
     private final UserRepository userRepository;
+    private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
 
     @NonFinal
     @Value("${SIGNER_KEY}")
-    private String signerKey;
-
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
+    String signerKey;
 
     public UserCreateResponse register(UserCreateRequest request) {
         if (userRepository.existsByUsername(request.getUsername()))
@@ -47,25 +46,14 @@ public class AuthService {
         if (userRepository.existsByEmail(request.getEmail()))
             throw new AppException(ErrorCode.EMAIL_EXISTED);
 
-        UserEntity user = new UserEntity();
-        user.setUsername(request.getUsername());
-        user.setEmail(request.getEmail());
-        user.setFullName(request.getFullName());
+        UserEntity user = userMapper.toEntity(request);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
 
         if (request.getAvatar() != null && !request.getAvatar().isEmpty())
             user.setAvatar(request.getAvatar());
 
         UserEntity userCreate = userRepository.save(user);
-
-        return UserCreateResponse.builder()
-                .id(userCreate.getId())
-                .username(userCreate.getUsername())
-                .email(userCreate.getEmail())
-                .fullName(userCreate.getFullName())
-                .avatar(userCreate.getAvatar())
-                .isActive(userCreate.getIsActive())
-                .build();
+        return userMapper.toResponse(userCreate);
     }
 
     public LoginResponse authenticate(LoginRequest request) {
@@ -75,8 +63,11 @@ public class AuthService {
         boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
         if (!authenticated)
             throw new AppException(ErrorCode.INVALID_CREDENTIALS);
-
-
+        
+        String token = generateToken(user);
+        return LoginResponse.builder()
+                .token(token)
+                .build();
     }
 
     private String generateToken(UserEntity user) {
