@@ -1,6 +1,5 @@
 package ttcs.connectme.controller;
 
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import ttcs.connectme.dto.request.MeetingRequest;
@@ -24,4 +23,15 @@ public class MeetingController {
     public ApiResponse<MeetingResponse> getMeetingByCode(@PathVariable String meetingCode){
         return meetingService.getMeetingByCode(meetingCode);
     }
+
+    @PostMapping("/meeting/{id}/start")
+    public ApiResponse<MeetingResponse> startMeeting(@PathVariable Long id) {
+        return meetingService.startMeeting(id);
+    }
+
+    @PostMapping("/meeting/{id}/end")
+    public ApiResponse<MeetingResponse> endMeeting(@PathVariable Long id) {
+        return meetingService.endMeeting(id);
+    }
+
 }
