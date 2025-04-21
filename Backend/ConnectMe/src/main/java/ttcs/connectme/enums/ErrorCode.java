@@ -17,6 +17,7 @@ public enum ErrorCode {
     INVALID_KEY(1000, "Key invalid", HttpStatus.BAD_REQUEST),
     USERNAME_EXISTED(1001, "Username existed", HttpStatus.BAD_REQUEST),
     EMAIL_EXISTED(1002, "Email existed", HttpStatus.BAD_REQUEST),
+    INVALID_CREDENTIALS(1003, "Invalid Credentials", HttpStatus.UNAUTHORIZED),
     UNAUTHORIZED(1015, "You do not have permission", HttpStatus.FORBIDDEN);
 
     int code;
