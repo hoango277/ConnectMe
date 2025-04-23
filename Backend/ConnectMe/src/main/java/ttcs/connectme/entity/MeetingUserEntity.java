@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Setter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Table(name = "meeting_participants")
-public class MeetingParticipantEntity extends BaseEntity {
+public class MeetingUserEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
