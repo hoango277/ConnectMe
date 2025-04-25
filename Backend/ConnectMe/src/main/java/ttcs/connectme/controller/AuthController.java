@@ -14,7 +14,7 @@ import ttcs.connectme.dto.request.LoginRequest;
 import ttcs.connectme.dto.request.UserCreateRequest;
 import ttcs.connectme.dto.response.ApiResponse;
 import ttcs.connectme.dto.response.LoginResponse;
-import ttcs.connectme.dto.response.UserCreateResponse;
+import ttcs.connectme.dto.response.UserResponse;
 import ttcs.connectme.service.AuthService;
 
 @RestController
@@ -22,11 +22,11 @@ import ttcs.connectme.service.AuthService;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AuthController {
-    AuthService authService;
+    private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<UserCreateResponse>> register(@RequestBody UserCreateRequest request) {
-        ApiResponse<UserCreateResponse> response = ApiResponse.<UserCreateResponse>builder()
+    public ResponseEntity<ApiResponse<UserResponse>> register(@RequestBody UserCreateRequest request) {
+        ApiResponse<UserResponse> response = ApiResponse.<UserResponse>builder()
                 .code(0)
                 .message("Register successfully")
                 .result(authService.register(request))
