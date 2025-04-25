@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 import ttcs.connectme.dto.request.LoginRequest;
 import ttcs.connectme.dto.request.UserCreateRequest;
 import ttcs.connectme.dto.response.LoginResponse;
-import ttcs.connectme.dto.response.UserCreateResponse;
+import ttcs.connectme.dto.response.UserResponse;
 import ttcs.connectme.entity.UserEntity;
 import ttcs.connectme.enums.ErrorCode;
 import ttcs.connectme.exception.AppException;
@@ -37,9 +37,9 @@ public class AuthService {
 
     @NonFinal
     @Value("${SIGNER_KEY}")
-    String signerKey;
+    private String signerKey;
 
-    public UserCreateResponse register(UserCreateRequest request) {
+    public UserResponse register(UserCreateRequest request) {
         if (userRepository.existsByUsername(request.getUsername()))
             throw new AppException(ErrorCode.USERNAME_EXISTED);
 
@@ -48,9 +48,6 @@ public class AuthService {
 
         UserEntity user = userMapper.toEntity(request);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-
-        if (request.getAvatar() != null && !request.getAvatar().isEmpty())
-            user.setAvatar(request.getAvatar());
 
         UserEntity userCreate = userRepository.save(user);
         return userMapper.toResponse(userCreate);
@@ -90,7 +87,7 @@ public class AuthService {
             object.sign(new MACSigner(signerKey.getBytes()));
             return object.serialize();
         } catch (Exception e) {
-            log.error("Cannot create token", e);
+            log.error ("Cannot create token", e);
             throw new RuntimeException(e);
         }
     }
