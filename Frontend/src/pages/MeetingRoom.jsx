@@ -27,7 +27,11 @@ import {
 const MeetingRoom = () => {
   const { meetingId } = useParams()
   const navigate = useNavigate()
-  const { currentUser } = useAuth()
+  const currentUser = {
+    "id": 1,
+    "name": null,
+    "email": "xuanhoa27072004@gmail.com"
+  }
 
   const [meeting, setMeeting] = useState(null)
   const [isHost, setIsHost] = useState(false)
@@ -61,6 +65,7 @@ const MeetingRoom = () => {
       try {
         // Fetch meeting details
         const meetingData = await meetingService.getMeeting(meetingId)
+        console.log(meetingData);
         setMeeting(meetingData)
         setIsHost(meetingData.hostId === currentUser.id)
 

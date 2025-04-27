@@ -65,8 +65,13 @@ public class AuthService {
             throw new AppException(ErrorCode.INVALID_CREDENTIALS);
         
         String token = generateToken(user);
+        LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo();
+        userInfo.setId(user.getId());
+        userInfo.setName(user.getFullName());
+        userInfo.setEmail(user.getEmail());
         return LoginResponse.builder()
                 .token(token)
+                .user(userInfo)
                 .build();
     }
 
