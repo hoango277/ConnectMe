@@ -80,7 +80,7 @@ class WebRTCService {
     this.stompClient.subscribe(`/topic/meeting.${meetingId}.user.joined`, async (message) => {
       const data = JSON.parse(message.body)
       console.log("User joined:", data.userId)
-
+      
       if (data.userId !== userId && this.callbacks.onParticipantJoined) {
         this.callbacks.onParticipantJoined(data)
       }
