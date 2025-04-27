@@ -57,10 +57,9 @@ public class AuthService {
         UserEntity user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_CREDENTIALS));
 
-        boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
-        if (!authenticated)
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash()))
             throw new AppException(ErrorCode.INVALID_CREDENTIALS);
-        
+
         String token = generateToken(user);
         return LoginResponse.builder()
                 .token(token)
