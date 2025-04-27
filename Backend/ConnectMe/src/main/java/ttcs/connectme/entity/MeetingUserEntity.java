@@ -14,7 +14,11 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @FieldDefaults(level = AccessLevel.PRIVATE)
+<<<<<<< HEAD
 @Table(name = "meeting_participants")
+=======
+@Table(name = "meeting_users")
+>>>>>>> origin/DuyAnh-dev
 public class MeetingUserEntity extends BaseEntity {
 
     @Id

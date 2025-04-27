@@ -15,6 +15,12 @@ import org.springframework.http.HttpStatusCode;
 public enum ErrorCode {
     UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error", HttpStatus.INTERNAL_SERVER_ERROR),
     INVALID_KEY(1000, "Key invalid", HttpStatus.BAD_REQUEST),
+<<<<<<< HEAD
+=======
+    USERNAME_EXISTED(1001, "Username existed", HttpStatus.BAD_REQUEST),
+    EMAIL_EXISTED(1002, "Email existed", HttpStatus.BAD_REQUEST),
+    INVALID_CREDENTIALS(1003, "Invalid Credentials", HttpStatus.UNAUTHORIZED),
+>>>>>>> origin/DuyAnh-dev
     UNAUTHORIZED(1015, "You do not have permission", HttpStatus.FORBIDDEN);
 
     int code;
