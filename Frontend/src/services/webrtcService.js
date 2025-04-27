@@ -28,7 +28,17 @@ class WebRTCService {
     this.meetingId = meetingId
 
     const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:8080/ws"
-    const socket = new SockJS(socketUrl)
+    // Include cookies on all SockJS transports (websocket + fallbacks)
+    const socket = new SockJS(socketUrl, null, {
+      transports: ["websocket", "xhr-streaming", "xhr-polling"],
+      transportOptions: {
+        websocket:    { withCredentials: true },
+        xhrStreaming: { withCredentials: true },
+        xhrPolling:   { withCredentials: true }
+      }
+    })
+    console.log("socket", socket)
+    
 
     // Create and configure STOMP client
     this.stompClient = new Client({
@@ -80,7 +90,7 @@ class WebRTCService {
     this.stompClient.subscribe(`/topic/meeting.${meetingId}.user.joined`, async (message) => {
       const data = JSON.parse(message.body)
       console.log("User joined:", data.userId)
-      
+
       if (data.userId !== userId && this.callbacks.onParticipantJoined) {
         this.callbacks.onParticipantJoined(data)
       }

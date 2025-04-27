@@ -28,7 +28,6 @@ const MeetingRoom = () => {
   const { meetingId } = useParams()
   const navigate = useNavigate()
   const currentUser = useAuth().currentUser
-  console.log(currentUser);
 
   const [meeting, setMeeting] = useState(null)
   const [isHost, setIsHost] = useState(false)
