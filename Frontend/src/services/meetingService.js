@@ -88,12 +88,12 @@ export const meetingService = {
   getMeeting: async (meetingId) => {
     try {
       // Mock data in development mode
-      if (import.meta.env.DEV && !import.meta.env.VITE_API_STRICT_MODE) {
+      // if (import.meta.env.DEV && !import.meta.env.VITE_API_STRICT_MODE) {
         console.warn("Using mock getMeeting in development mode");
         const meeting = mockMeetings.find(m => m.id === meetingId);
         if (meeting) return meeting;
         throw new Error("Meeting not found");
-      }
+      // }
       
       const response = await api.get(`/api/meetings/${meetingId}`)
       return response.data
@@ -161,10 +161,10 @@ export const meetingService = {
   getMeetingParticipants: async (meetingId) => {
     try {
       // Mock data in development mode
-      if (import.meta.env.DEV && !import.meta.env.VITE_API_STRICT_MODE) {
+      // if (import.meta.env.DEV && !import.meta.env.VITE_API_STRICT_MODE) {
         console.warn("Using mock getMeetingParticipants in development mode");
         return mockParticipants;
-      }
+      // }
       
       const response = await api.get(`/api/meetings/${meetingId}/participants`)
       return response.data
