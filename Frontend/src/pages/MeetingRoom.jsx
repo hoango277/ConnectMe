@@ -19,12 +19,19 @@ import {
   MoreVertical,
   UserPlus,
   Share2,
+  FileText,
+  Download,
+  Paperclip,
 } from "lucide-react"
 
 const MeetingRoom = () => {
   const { meetingId } = useParams()
   const navigate = useNavigate()
-  const { currentUser } = useAuth()
+  const currentUser = {
+    "id": 1,
+    "name": null,
+    "email": "xuanhoa27072004@gmail.com"
+  }
 
   const [meeting, setMeeting] = useState(null)
   const [isHost, setIsHost] = useState(false)
@@ -42,7 +49,10 @@ const MeetingRoom = () => {
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false)
   const [chatMessages, setChatMessages] = useState([])
   const [messageInput, setMessageInput] = useState("")
-
+  const [fileUploading, setFileUploading] = useState(false)
+  const [receivedFiles, setReceivedFiles] = useState([])
+  
+  const fileInputRef = useRef(null)
   const localVideoRef = useRef(null)
   const screenShareRef = useRef(null)
   const participantRefs = useRef({})
@@ -50,10 +60,12 @@ const MeetingRoom = () => {
 
   // Initialize meeting and WebRTC
   useEffect(() => {
+
     const initializeMeeting = async () => {
       try {
         // Fetch meeting details
         const meetingData = await meetingService.getMeeting(meetingId)
+        console.log(meetingData);
         setMeeting(meetingData)
         setIsHost(meetingData.hostId === currentUser.id)
 
@@ -74,7 +86,6 @@ const MeetingRoom = () => {
         setIsLoading(false)
       }
     }
-
     initializeMeeting()
 
     // Cleanup function
@@ -83,7 +94,7 @@ const MeetingRoom = () => {
     }
   }, [meetingId, currentUser.id])
 
-  // Initialize WebRTC
+  // Initialize WebRTC with SockJS/STOMP
   const initializeWebRTC = async (meetingData) => {
     try {
       // Get user media (camera and microphone)
@@ -103,6 +114,9 @@ const MeetingRoom = () => {
         onParticipantLeft: handleParticipantLeft,
         onRemoteStreamAdded: handleRemoteStreamAdded,
         onMessageReceived: handleMessageReceived,
+        onFileReceived: handleFileReceived,
+        onParticipantAudioToggle: handleParticipantAudioToggle,
+        onParticipantVideoToggle: handleParticipantVideoToggle,
         onError: handleWebRTCError,
       })
     } catch (err) {
@@ -170,6 +184,52 @@ const MeetingRoom = () => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }
+  }
+  
+  // Handle file received
+  const handleFileReceived = (fileData) => {
+    // Add to received files list
+    setReceivedFiles(prev => [...prev, fileData])
+    
+    // Add system message about received file
+    const fileMessage = {
+      id: Date.now(),
+      senderId: fileData.senderId,
+      senderName: fileData.senderName,
+      text: `Sent a file: ${fileData.fileName} (${(fileData.fileSize / 1024).toFixed(2)} KB)`,
+      timestamp: fileData.timestamp,
+      type: "file",
+      fileData: fileData
+    }
+    
+    setChatMessages(prev => [...prev, fileMessage])
+    
+    // Scroll to bottom of chat
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
+    }
+  }
+  
+  // Handle participant audio toggle
+  const handleParticipantAudioToggle = (userId, enabled) => {
+    setParticipants(prev => 
+      prev.map(p => 
+        p.id === userId 
+          ? { ...p, audioEnabled: enabled } 
+          : p
+      )
+    )
+  }
+  
+  // Handle participant video toggle
+  const handleParticipantVideoToggle = (userId, enabled) => {
+    setParticipants(prev => 
+      prev.map(p => 
+        p.id === userId 
+          ? { ...p, videoEnabled: enabled } 
+          : p
+      )
+    )
   }
 
   // Handle WebRTC error
@@ -261,6 +321,49 @@ const MeetingRoom = () => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }
+  }
+  
+  // Handle file upload button click
+  const handleFileUploadClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click()
+    }
+  }
+  
+  // Handle file selection for upload
+  const handleFileSelected = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    
+    try {
+      setFileUploading(true)
+      
+      // Add system message about file being uploaded
+      addSystemMessage(`Uploading file: ${file.name}`)
+      
+      // Upload the file
+      await webrtcService.sendFile(file, {
+        senderName: currentUser.name
+      })
+      
+      // Add system message about file upload completed
+      addSystemMessage(`File uploaded successfully: ${file.name}`)
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    } catch (err) {
+      console.error("Error uploading file:", err)
+      addSystemMessage(`Failed to upload file: ${file.name}`)
+    } finally {
+      setFileUploading(false)
+    }
+  }
+  
+  // Download a received file
+  const downloadFile = (fileData) => {
+    webrtcService.downloadFile(fileData)
   }
 
   // Remove participant (host only)
@@ -524,7 +627,21 @@ const MeetingRoom = () => {
                               : "bg-muted"
                         } py-2 px-3 rounded-lg max-w-[85%]`}
                       >
-                        <p className="text-sm">{message.text}</p>
+                        {message.type === "file" ? (
+                          <div className="flex items-center gap-2">
+                            <FileText size={16} />
+                            <span className="text-sm">{message.text}</span>
+                            <button 
+                              onClick={() => downloadFile(message.fileData)}
+                              className="p-1 hover:bg-background/20 rounded"
+                              title="Download file"
+                            >
+                              <Download size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="text-sm">{message.text}</p>
+                        )}
                       </div>
                       {message.type !== "system" && (
                         <p className="text-xs text-muted-foreground mt-1">
@@ -537,17 +654,41 @@ const MeetingRoom = () => {
               </div>
             </div>
             <div className="p-4 border-t">
-              <form onSubmit={sendMessage} className="flex gap-2">
-                <input
-                  type="text"
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  placeholder="Type a message..."
-                  className="input flex-1"
-                />
-                <button type="submit" className="btn btn-primary p-2" disabled={!messageInput.trim()}>
-                  <Send size={18} />
-                </button>
+              <form onSubmit={sendMessage} className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    placeholder="Type a message..."
+                    className="input flex-1"
+                  />
+                  <button 
+                    type="button" 
+                    onClick={handleFileUploadClick}
+                    className="btn btn-outline p-2"
+                    disabled={fileUploading}
+                    title="Attach file"
+                  >
+                    {fileUploading ? (
+                      <div className="animate-spin h-5 w-5 border-t-2 border-b-2 border-primary"></div>
+                    ) : (
+                      <Paperclip size={18} />
+                    )}
+                  </button>
+                  <input 
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileSelected}
+                    className="hidden"
+                  />
+                  <button type="submit" className="btn btn-primary p-2" disabled={!messageInput.trim()}>
+                    <Send size={18} />
+                  </button>
+                </div>
+                {fileUploading && (
+                  <p className="text-xs text-muted-foreground">Uploading file...</p>
+                )}
               </form>
             </div>
           </div>

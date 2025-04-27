@@ -1,118 +1,191 @@
-import { io } from "socket.io-client"
+import SockJS from "sockjs-client"
+import { Client } from "@stomp/stompjs"
+import { saveAs } from "file-saver"
 
 class WebRTCService {
   constructor() {
-    this.socket = null
+    this.stompClient = null
     this.peerConnections = {}
     this.localStream = null
-    this.onParticipantJoinedCallback = null
-    this.onParticipantLeftCallback = null
-    this.onRemoteStreamAddedCallback = null
-    this.onRemoteStreamRemovedCallback = null
-    this.onMessageReceivedCallback = null
-    this.onErrorCallback = null
+    this.screenStream = null
+    this.userId = null
+    this.meetingId = null
+    this.callbacks = {
+      onParticipantJoined: null,
+      onParticipantLeft: null,
+      onRemoteStreamAdded: null,
+      onMessageReceived: null,
+      onFileReceived: null,
+      onError: null,
+      onParticipantAudioToggle: null,
+      onParticipantVideoToggle: null,
+    }
   }
 
-  // Initialize WebRTC service
+  // Initialize WebRTC service with SockJS and STOMP
   initialize(userId, meetingId) {
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:8080"
+    this.userId = userId
+    this.meetingId = meetingId
 
-    this.socket = io(socketUrl, {
-      auth: {
-        token: localStorage.getItem("token"),
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:8080/ws"
+    const socket = new SockJS(socketUrl)
+
+    // Create and configure STOMP client
+    this.stompClient = new Client({
+      webSocketFactory: () => socket,
+      debug: (str) => {
+        if (import.meta.env.DEV) {
+          console.debug(str)
+        }
       },
-      query: {
-        meetingId,
-      },
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000
     })
 
-    this.setupSocketListeners(userId, meetingId)
+    // Connect to the STOMP broker
+    this.stompClient.onConnect = (frame) => {
+      console.log("Connected to STOMP broker:", frame)
+
+      // Join the meeting
+      this.stompClient.publish({
+        destination: "/app/meeting.join",
+        body: JSON.stringify({ userId, meetingId })
+      })
+
+      // Subscribe to meeting events
+      this.setupSubscriptions(userId, meetingId)
+    }
+
+    // Handle connection errors
+    this.stompClient.onStompError = (frame) => {
+      console.error("STOMP error:", frame)
+      if (this.callbacks.onError) {
+        this.callbacks.onError({ message: "Connection error", details: frame })
+      }
+    }
+
+    // Handle disconnection
+    this.stompClient.onDisconnect = () => {
+      console.log("Disconnected from STOMP broker")
+    }
+
+    // Start the connection
+    this.stompClient.activate()
   }
 
-  // Set up socket event listeners
-  setupSocketListeners(userId, meetingId) {
-    this.socket.on("connect", () => {
-      console.log("Connected to signaling server")
-      this.socket.emit("join-meeting", { userId, meetingId })
-    })
-
-    this.socket.on("user-joined", async (data) => {
+  // Set up STOMP subscriptions
+  setupSubscriptions(userId, meetingId) {
+    // Subscribe to user joined events
+    this.stompClient.subscribe(`/topic/meeting.${meetingId}.user.joined`, async (message) => {
+      const data = JSON.parse(message.body)
       console.log("User joined:", data.userId)
-      if (this.onParticipantJoinedCallback) {
-        this.onParticipantJoinedCallback(data)
+
+      if (data.userId !== userId && this.callbacks.onParticipantJoined) {
+        this.callbacks.onParticipantJoined(data)
       }
 
-      await this.createPeerConnection(data.userId)
+      if (data.userId !== userId) {
+        await this.createPeerConnection(data.userId)
 
-      if (this.localStream) {
-        const offer = await this.createOffer(data.userId)
-        this.socket.emit("offer", {
-          targetUserId: data.userId,
-          offer,
-          from: userId,
-        })
-      }
-    })
-
-    this.socket.on("user-left", (data) => {
-      console.log("User left:", data.userId)
-      this.closePeerConnection(data.userId)
-      if (this.onParticipantLeftCallback) {
-        this.onParticipantLeftCallback(data)
-      }
-    })
-
-    this.socket.on("offer", async (data) => {
-      console.log("Received offer from:", data.from)
-      if (!this.peerConnections[data.from]) {
-        await this.createPeerConnection(data.from)
-      }
-
-      await this.peerConnections[data.from].setRemoteDescription(new RTCSessionDescription(data.offer))
-
-      const answer = await this.createAnswer(data.from)
-      this.socket.emit("answer", {
-        targetUserId: data.from,
-        answer,
-        from: userId,
-      })
-    })
-
-    this.socket.on("answer", async (data) => {
-      console.log("Received answer from:", data.from)
-      const peerConnection = this.peerConnections[data.from]
-      if (peerConnection) {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
-      }
-    })
-
-    this.socket.on("ice-candidate", async (data) => {
-      console.log("Received ICE candidate from:", data.from)
-      const peerConnection = this.peerConnections[data.from]
-      if (peerConnection) {
-        try {
-          await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate))
-        } catch (error) {
-          console.error("Error adding ICE candidate:", error)
+        if (this.localStream) {
+          const offer = await this.createOffer(data.userId)
+          this.stompClient.publish({
+            destination: "/app/meeting.signal",
+            body: JSON.stringify({
+              type: "offer",
+              targetUserId: data.userId,
+              from: userId,
+              meetingId,
+              payload: JSON.stringify(offer)
+            })
+          })
         }
       }
     })
 
-    this.socket.on("chat-message", (data) => {
-      if (this.onMessageReceivedCallback) {
-        this.onMessageReceivedCallback(data)
+    // Subscribe to user left events
+    this.stompClient.subscribe(`/topic/meeting.${meetingId}.user.left`, (message) => {
+      const data = JSON.parse(message.body)
+      console.log("User left:", data.userId)
+
+      this.closePeerConnection(data.userId)
+      if (this.callbacks.onParticipantLeft) {
+        this.callbacks.onParticipantLeft(data)
       }
     })
 
-    this.socket.on("error", (error) => {
-      console.error("Socket error:", error)
-      if (this.onErrorCallback) {
-        this.onErrorCallback(error)
+    // Subscribe to WebRTC signaling
+    this.stompClient.subscribe(`/user/${userId}/topic/meeting.${meetingId}.signal`, async (message) => {
+      const data = JSON.parse(message.body)
+      
+      if (data.type === "offer" && data.from !== userId) {
+        console.log("Received offer from:", data.from)
+        if (!this.peerConnections[data.from]) {
+          await this.createPeerConnection(data.from)
+        }
+
+        const offer = JSON.parse(data.payload)
+        await this.peerConnections[data.from].setRemoteDescription(new RTCSessionDescription(offer))
+
+        const answer = await this.createAnswer(data.from)
+        this.stompClient.publish({
+          destination: "/app/meeting.signal",
+          body: JSON.stringify({
+            type: "answer",
+            targetUserId: data.from,
+            from: userId,
+            meetingId,
+            payload: JSON.stringify(answer)
+          })
+        })
+      } else if (data.type === "answer" && data.from !== userId) {
+        console.log("Received answer from:", data.from)
+        const peerConnection = this.peerConnections[data.from]
+        if (peerConnection) {
+          const answer = JSON.parse(data.payload)
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
+        }
+      } else if (data.type === "ice-candidate" && data.from !== userId) {
+        console.log("Received ICE candidate from:", data.from)
+        const peerConnection = this.peerConnections[data.from]
+        if (peerConnection) {
+          try {
+            const candidate = JSON.parse(data.payload)
+            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+          } catch (error) {
+            console.error("Error adding ICE candidate:", error)
+          }
+        }
       }
     })
 
-    this.socket.on("disconnect", () => {
-      console.log("Disconnected from signaling server")
+    // Subscribe to chat messages
+    this.stompClient.subscribe(`/topic/meeting.${meetingId}.chat`, (message) => {
+      const data = JSON.parse(message.body)
+      if (this.callbacks.onMessageReceived && data.senderId !== userId) {
+        this.callbacks.onMessageReceived(data)
+      }
+    })
+
+    // Subscribe to file transfers
+    this.stompClient.subscribe(`/topic/meeting.${meetingId}.file`, (message) => {
+      const data = JSON.parse(message.body)
+      if (this.callbacks.onFileReceived && data.senderId !== userId) {
+        this.callbacks.onFileReceived(data)
+      }
+    })
+
+    // Subscribe to audio/video state changes
+    this.stompClient.subscribe(`/topic/meeting.${meetingId}.media.state`, (message) => {
+      const data = JSON.parse(message.body)
+      if (data.userId !== userId) {
+        if (data.mediaType === "audio" && this.callbacks.onParticipantAudioToggle) {
+          this.callbacks.onParticipantAudioToggle(data.userId, data.enabled)
+        } else if (data.mediaType === "video" && this.callbacks.onParticipantVideoToggle) {
+          this.callbacks.onParticipantVideoToggle(data.userId, data.enabled)
+        }
+      }
     })
   }
 
@@ -120,29 +193,42 @@ class WebRTCService {
   async createPeerConnection(userId) {
     try {
       const configuration = {
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }],
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" }, 
+          { urls: "stun:stun1.l.google.com:19302" },
+          { urls: "stun:stun2.l.google.com:19302" }
+        ],
       }
 
       const peerConnection = new RTCPeerConnection(configuration)
 
+      // Handle ICE candidates
       peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
-          this.socket.emit("ice-candidate", {
-            targetUserId: userId,
-            candidate: event.candidate,
-            from: this.socket.id,
+          this.stompClient.publish({
+            destination: "/app/meeting.signal",
+            body: JSON.stringify({
+              type: "ice-candidate",
+              targetUserId: userId,
+              from: this.userId,
+              meetingId: this.meetingId,
+              payload: JSON.stringify(event.candidate)
+            })
           })
         }
       }
 
+      // Handle remote tracks
       peerConnection.ontrack = (event) => {
-        if (this.onRemoteStreamAddedCallback) {
-          this.onRemoteStreamAddedCallback(userId, event.streams[0])
+        if (this.callbacks.onRemoteStreamAdded) {
+          this.callbacks.onRemoteStreamAdded(userId, event.streams[0])
         }
       }
 
+      // Monitor connection state changes
       peerConnection.onconnectionstatechange = (event) => {
-        if (peerConnection.connectionState === "disconnected" || peerConnection.connectionState === "failed") {
+        if (peerConnection.connectionState === "disconnected" || 
+            peerConnection.connectionState === "failed") {
           this.closePeerConnection(userId)
         }
       }
@@ -158,8 +244,8 @@ class WebRTCService {
       return peerConnection
     } catch (error) {
       console.error("Error creating peer connection:", error)
-      if (this.onErrorCallback) {
-        this.onErrorCallback(error)
+      if (this.callbacks.onError) {
+        this.callbacks.onError(error)
       }
       throw error
     }
@@ -169,13 +255,16 @@ class WebRTCService {
   async createOffer(userId) {
     try {
       const peerConnection = this.peerConnections[userId]
-      const offer = await peerConnection.createOffer()
+      const offer = await peerConnection.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      })
       await peerConnection.setLocalDescription(offer)
       return offer
     } catch (error) {
       console.error("Error creating offer:", error)
-      if (this.onErrorCallback) {
-        this.onErrorCallback(error)
+      if (this.callbacks.onError) {
+        this.callbacks.onError(error)
       }
       throw error
     }
@@ -190,8 +279,8 @@ class WebRTCService {
       return answer
     } catch (error) {
       console.error("Error creating answer:", error)
-      if (this.onErrorCallback) {
-        this.onErrorCallback(error)
+      if (this.callbacks.onError) {
+        this.callbacks.onError(error)
       }
       throw error
     }
@@ -213,8 +302,8 @@ class WebRTCService {
       return this.localStream
     } catch (error) {
       console.error("Error getting user media:", error)
-      if (this.onErrorCallback) {
-        this.onErrorCallback(error)
+      if (this.callbacks.onError) {
+        this.callbacks.onError(error)
       }
       throw error
     }
@@ -226,6 +315,17 @@ class WebRTCService {
       this.localStream.getAudioTracks().forEach((track) => {
         track.enabled = enabled
       })
+
+      // Notify other participants
+      this.stompClient.publish({
+        destination: "/app/meeting.media.state",
+        body: JSON.stringify({
+          userId: this.userId,
+          meetingId: this.meetingId,
+          mediaType: "audio",
+          enabled: enabled
+        })
+      })
     }
   }
 
@@ -235,19 +335,31 @@ class WebRTCService {
       this.localStream.getVideoTracks().forEach((track) => {
         track.enabled = enabled
       })
+
+      // Notify other participants
+      this.stompClient.publish({
+        destination: "/app/meeting.media.state",
+        body: JSON.stringify({
+          userId: this.userId,
+          meetingId: this.meetingId,
+          mediaType: "video",
+          enabled: enabled
+        })
+      })
     }
   }
 
   // Share screen
   async shareScreen() {
     try {
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+      this.screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
+        audio: false
       })
 
       // Replace video track with screen track
       if (this.localStream) {
-        const videoTrack = screenStream.getVideoTracks()[0]
+        const videoTrack = this.screenStream.getVideoTracks()[0]
 
         // Replace video track in all peer connections
         Object.values(this.peerConnections).forEach((pc) => {
@@ -262,12 +374,12 @@ class WebRTCService {
           this.stopScreenSharing()
         }
 
-        return screenStream
+        return this.screenStream
       }
     } catch (error) {
       console.error("Error sharing screen:", error)
-      if (this.onErrorCallback) {
-        this.onErrorCallback(error)
+      if (this.callbacks.onError) {
+        this.callbacks.onError(error)
       }
       throw error
     }
@@ -276,6 +388,12 @@ class WebRTCService {
   // Stop screen sharing
   async stopScreenSharing() {
     try {
+      // Stop all tracks in the screen stream
+      if (this.screenStream) {
+        this.screenStream.getTracks().forEach(track => track.stop())
+        this.screenStream = null
+      }
+
       // Get a new video stream from camera
       const newStream = await navigator.mediaDevices.getUserMedia({ video: true })
       const videoTrack = newStream.getVideoTracks()[0]
@@ -291,21 +409,84 @@ class WebRTCService {
       // Update local stream
       if (this.localStream) {
         const audioTracks = this.localStream.getAudioTracks()
-        this.localStream.getVideoTracks().forEach((track) => track.stop())
-
+        const oldVideoTracks = this.localStream.getVideoTracks()
+        
+        // Stop old video tracks
+        oldVideoTracks.forEach(track => track.stop())
+        
+        // Create a new stream with audio and new video
         this.localStream = new MediaStream([...audioTracks, videoTrack])
       }
     } catch (error) {
       console.error("Error stopping screen sharing:", error)
-      if (this.onErrorCallback) {
-        this.onErrorCallback(error)
+      if (this.callbacks.onError) {
+        this.callbacks.onError(error)
       }
     }
   }
 
   // Send a chat message
   sendMessage(message) {
-    this.socket.emit("chat-message", message)
+    this.stompClient.publish({
+      destination: "/app/meeting.chat",
+      body: JSON.stringify({
+        ...message,
+        meetingId: this.meetingId
+      })
+    })
+  }
+
+  // Send a file
+  sendFile(file, metadata) {
+    const reader = new FileReader()
+    
+    reader.onload = (e) => {
+      const base64data = e.target.result
+      
+      this.stompClient.publish({
+        destination: "/app/meeting.file",
+        body: JSON.stringify({
+          senderId: this.userId,
+          senderName: metadata.senderName,
+          meetingId: this.meetingId,
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          fileData: base64data,
+          timestamp: new Date().toISOString()
+        })
+      })
+    }
+    
+    reader.readAsDataURL(file)
+  }
+
+  // Download received file
+  downloadFile(fileData) {
+    // Extract actual base64 data from dataURL
+    const base64Content = fileData.fileData.split(',')[1]
+    const blob = this.base64toBlob(base64Content, fileData.fileType)
+    saveAs(blob, fileData.fileName)
+  }
+
+  // Convert base64 to Blob
+  base64toBlob(base64, contentType) {
+    const byteCharacters = atob(base64)
+    const byteArrays = []
+    
+    for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+      const slice = byteCharacters.slice(offset, offset + 512)
+      
+      const byteNumbers = new Array(slice.length)
+      for (let i = 0; i < slice.length; i++) {
+        byteNumbers[i] = slice.charCodeAt(i)
+      }
+      
+      const byteArray = new Uint8Array(byteNumbers)
+      byteArrays.push(byteArray)
+    }
+    
+    return new Blob(byteArrays, { type: contentType })
   }
 
   // Leave the meeting
@@ -321,28 +502,34 @@ class WebRTCService {
       this.localStream = null
     }
 
-    // Disconnect from socket
-    if (this.socket) {
-      this.socket.disconnect()
-      this.socket = null
+    // Stop screen sharing stream
+    if (this.screenStream) {
+      this.screenStream.getTracks().forEach((track) => track.stop())
+      this.screenStream = null
+    }
+
+    // Notify server that user is leaving
+    if (this.stompClient && this.stompClient.connected) {
+      this.stompClient.publish({
+        destination: "/app/meeting.leave",
+        body: JSON.stringify({
+          userId: this.userId,
+          meetingId: this.meetingId
+        })
+      })
+      
+      // Disconnect STOMP client
+      this.stompClient.deactivate()
+      this.stompClient = null
     }
   }
 
   // Set callbacks
-  setCallbacks({
-    onParticipantJoined,
-    onParticipantLeft,
-    onRemoteStreamAdded,
-    onRemoteStreamRemoved,
-    onMessageReceived,
-    onError,
-  }) {
-    this.onParticipantJoinedCallback = onParticipantJoined
-    this.onParticipantLeftCallback = onParticipantLeft
-    this.onRemoteStreamAddedCallback = onRemoteStreamAdded
-    this.onRemoteStreamRemovedCallback = onRemoteStreamRemoved
-    this.onMessageReceivedCallback = onMessageReceived
-    this.onErrorCallback = onError
+  setCallbacks(callbacks) {
+    this.callbacks = {
+      ...this.callbacks,
+      ...callbacks
+    }
   }
 }
 

@@ -55,8 +55,9 @@ export const AuthProvider = ({ children }) => {
       }
       
       // Normal authentication flow
-      const response = await api.post("/api/auth/login", { email, password })
-      const { token, user } = response.data
+      const response = await api.post("/api/auth/login", { username: email, password })
+      console.log(response);
+      const { token, user } = response.data.result
 
       localStorage.setItem("token", token)
       api.setAuthToken(token)
