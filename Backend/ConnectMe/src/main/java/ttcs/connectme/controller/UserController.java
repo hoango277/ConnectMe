@@ -14,7 +14,7 @@ import ttcs.connectme.dto.response.UserResponse;
 import ttcs.connectme.service.UserService;
 
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/api/users")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class UserController {
