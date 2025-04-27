@@ -27,7 +27,10 @@ export const AuthProvider = ({ children }) => {
     try {
       api.setAuthToken(token)
       const response = await api.get("/api/users/me")
-      setCurrentUser(response.data)
+      // support wrapped or direct user response
+      const payload = response.data.result || response.data
+      const user = payload.user || payload
+      setCurrentUser(user)
       setIsAuthenticated(true)
     } catch (error) {
       console.error("Failed to fetch user profile:", error)
