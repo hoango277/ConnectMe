@@ -18,6 +18,8 @@ public enum ErrorCode {
     USERNAME_EXISTED(1001, "Username existed", HttpStatus.BAD_REQUEST),
     EMAIL_EXISTED(1002, "Email existed", HttpStatus.BAD_REQUEST),
     INVALID_CREDENTIALS(1003, "Invalid Credentials", HttpStatus.UNAUTHORIZED),
+    USER_NOT_FOUND(1004, "User not found", HttpStatus.NOT_FOUND),
+    INCORRECT_PASSWORD(1005, "Incorrect current password", HttpStatus.BAD_REQUEST),
     UNAUTHORIZED(1015, "You do not have permission", HttpStatus.FORBIDDEN);
 
     int code;
