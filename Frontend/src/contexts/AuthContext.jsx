@@ -66,7 +66,7 @@ export const AuthProvider = ({ children }) => {
       return true
     } catch (error) {
       // For development, when no backend is available
-      if (import.meta.env.DEV && !import.meta.env.VITE_API_STRICT_MODE) {
+      // if (import.meta.env.DEV && !import.meta.env.VITE_API_STRICT_MODE) {
         console.warn("Using mock login in development mode")
         const mockUser = { id: "mock-user-1", name: "Test User", email: email }
         const mockToken = "mock-token-for-development"
@@ -77,7 +77,7 @@ export const AuthProvider = ({ children }) => {
         setCurrentUser(mockUser)
         setIsAuthenticated(true)
         return true
-      }
+      // }
       
       setError(error.response?.data?.message || "Login failed")
       return false
