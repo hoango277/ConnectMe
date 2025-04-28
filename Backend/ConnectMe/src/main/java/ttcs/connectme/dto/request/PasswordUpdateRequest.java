@@ -1,5 +1,6 @@
 package ttcs.connectme.dto.request;
 
+import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -8,8 +9,9 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class LoginRequest {
-    String username;
+public class PasswordUpdateRequest {
+    String currentPassword;
 
-    String password;
+    @Size(min = 8, message = "PASSWORD_INVALID")
+    String newPassword;
 }

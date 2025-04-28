@@ -14,72 +14,38 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    // Check if user is already logged in
-    const token = localStorage.getItem("token")
-    if (token) {
-      fetchUserProfile(token)
-    } else {
-      setLoading(false)
-    }
+    // fetch user on startup via cookie
+    fetchUserProfile()
   }, [])
 
-  const fetchUserProfile = async (token) => {
+  const fetchUserProfile = async () => {
     try {
-      api.setAuthToken(token)
       const response = await api.get("/api/users/me")
-      setCurrentUser(response.data)
+      const payload = response.data.result || response.data
+      const user = payload.user || payload
+      setCurrentUser(user)
       setIsAuthenticated(true)
     } catch (error) {
+      // no valid session cookie
       console.error("Failed to fetch user profile:", error)
-      localStorage.removeItem("token")
+      setCurrentUser(null)
+      setIsAuthenticated(false)
     } finally {
       setLoading(false)
     }
   }
 
-  const login = async (email, password) => {
+  const login = async (username, password) => {
     setError(null)
     try {
-      // For testing purposes, allow mock login when backend isn't available
-      if (import.meta.env.DEV && !import.meta.env.VITE_API_STRICT_MODE) {
-        console.warn("Using mock login in development mode")
-        const mockUser = { id: "mock-user-1", name: "Test User", email: email }
-        const mockToken = "mock-token-for-development"
-        
-        localStorage.setItem("token", mockToken)
-        api.setAuthToken(mockToken)
-        
-        setCurrentUser(mockUser)
-        setIsAuthenticated(true)
-        return true
-      }
-      
-      // Normal authentication flow
-      const response = await api.post("/api/auth/login", { username: email, password })
-      console.log(response);
-      const { token, user } = response.data.result
-
-      localStorage.setItem("token", token)
-      api.setAuthToken(token)
-
+      const response = await api.post("/api/auth/login", { username, password })
+      // cookie 'jwt' is set by backend
+      const payload = response.data.result || response.data
+      const user = payload.user || payload.user
       setCurrentUser(user)
       setIsAuthenticated(true)
       return true
     } catch (error) {
-      // For development, when no backend is available
-      if (import.meta.env.DEV && !import.meta.env.VITE_API_STRICT_MODE) {
-        console.warn("Using mock login in development mode")
-        const mockUser = { id: "mock-user-1", name: "Test User", email: email }
-        const mockToken = "mock-token-for-development"
-        
-        localStorage.setItem("token", mockToken)
-        api.setAuthToken(mockToken)
-        
-        setCurrentUser(mockUser)
-        setIsAuthenticated(true)
-        return true
-      }
-      
       setError(error.response?.data?.message || "Login failed")
       return false
     }
@@ -102,11 +68,13 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const logout = () => {
-    localStorage.removeItem("token")
-    api.setAuthToken(null)
-    setCurrentUser(null)
-    setIsAuthenticated(false)
+  const logout = async () => {
+    try {
+      await api.post("/api/auth/logout") // backend clears cookie
+    } catch {} finally {
+      setCurrentUser(null)
+      setIsAuthenticated(false)
+    }
   }
 
   const updateProfile = async (userData) => {
