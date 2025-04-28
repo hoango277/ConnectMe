@@ -1,0 +1,113 @@
+"use client"
+
+import { createContext, useContext, useState, useEffect } from "react"
+import { api } from "../services/api"
+
+const AuthContext = createContext()
+
+export const useAuth = () => useContext(AuthContext)
+
+export const AuthProvider = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    // fetch user on startup via cookie
+    fetchUserProfile()
+  }, [])
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await api.get("/api/users/me")
+      const payload = response.data.result || response.data
+      const user = payload.user || payload
+      setCurrentUser(user)
+      setIsAuthenticated(true)
+    } catch (error) {
+      // no valid session cookie
+      console.error("Failed to fetch user profile:", error)
+      setCurrentUser(null)
+      setIsAuthenticated(false)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const login = async (username, password) => {
+    setError(null)
+    try {
+      const response = await api.post("/api/auth/login", { username, password })
+      // cookie 'jwt' is set by backend
+      const payload = response.data.result || response.data
+      const user = payload.user || payload.user
+      setCurrentUser(user)
+      setIsAuthenticated(true)
+      return true
+    } catch (error) {
+      setError(error.response?.data?.message || "Login failed")
+      return false
+    }
+  }
+
+  const register = async (userData) => {
+    setError(null)
+    try {
+      // For testing purposes in development
+      if (import.meta.env.DEV && !import.meta.env.VITE_API_STRICT_MODE) {
+        console.warn("Using mock registration in development mode")
+        return { success: true, message: "Registration successful" }
+      }
+      
+      const response = await api.post("/api/auth/register", userData)
+      return response.data
+    } catch (error) {
+      setError(error.response?.data?.message || "Registration failed")
+      throw error
+    }
+  }
+
+  const logout = async () => {
+    try {
+      await api.post("/api/auth/logout") // backend clears cookie
+    } catch {} finally {
+      setCurrentUser(null)
+      setIsAuthenticated(false)
+    }
+  }
+
+  const updateProfile = async (userData) => {
+    try {
+      // For testing in development
+      if (import.meta.env.DEV && !import.meta.env.VITE_API_STRICT_MODE) {
+        console.warn("Using mock profile update in development mode")
+        setCurrentUser(prevUser => ({
+          ...prevUser,
+          ...userData
+        }))
+        return { ...currentUser, ...userData }
+      }
+      
+      const response = await api.put("/api/users/me", userData)
+      setCurrentUser(response.data)
+      return response.data
+    } catch (error) {
+      setError(error.response?.data?.message || "Failed to update profile")
+      throw error
+    }
+  }
+
+  const value = {
+    currentUser,
+    isAuthenticated,
+    loading,
+    error,
+    login,
+    register,
+    logout,
+    updateProfile,
+  }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
