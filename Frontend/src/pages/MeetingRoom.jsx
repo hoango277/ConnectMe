@@ -27,11 +27,7 @@ import {
 const MeetingRoom = () => {
   const { meetingId } = useParams()
   const navigate = useNavigate()
-  const currentUser = {
-    "id": 1,
-    "name": null,
-    "email": "xuanhoa27072004@gmail.com"
-  }
+  const currentUser = useAuth().currentUser
 
   const [meeting, setMeeting] = useState(null)
   const [isHost, setIsHost] = useState(false)

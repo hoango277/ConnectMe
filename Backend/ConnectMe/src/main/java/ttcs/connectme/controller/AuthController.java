@@ -2,6 +2,7 @@ package ttcs.connectme.controller;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -14,7 +15,7 @@ import ttcs.connectme.dto.request.LoginRequest;
 import ttcs.connectme.dto.request.UserCreateRequest;
 import ttcs.connectme.dto.response.ApiResponse;
 import ttcs.connectme.dto.response.LoginResponse;
-import ttcs.connectme.dto.response.UserCreateResponse;
+import ttcs.connectme.dto.response.UserResponse;
 import ttcs.connectme.service.AuthService;
 
 @RestController
@@ -25,8 +26,8 @@ public class AuthController {
     AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<UserCreateResponse>> register(@RequestBody UserCreateRequest request) {
-        ApiResponse<UserCreateResponse> response = ApiResponse.<UserCreateResponse>builder()
+    public ResponseEntity<ApiResponse<UserResponse>> register(@Valid @RequestBody UserCreateRequest request) {
+        ApiResponse<UserResponse> response = ApiResponse.<UserResponse>builder()
                 .code(0)
                 .message("Register successfully")
                 .result(authService.register(request))
