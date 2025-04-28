@@ -7,7 +7,7 @@ import { Eye, EyeOff, UserPlus } from "lucide-react"
 
 const Register = () => {
   const [formData, setFormData] = useState({
-    username:"",
+    username: "",
     name: "",
     email: "",
     password: "",
@@ -63,23 +63,24 @@ const Register = () => {
 
     setIsLoading(true)
 
-    try {
-      await register({
-        username: formData.username,
-        fullname: formData.name,
-        email: formData.email,
-        password: formData.password,
-      })
+    const result = await register({
+      username: formData.username,
+      fullName: formData.name,
+      email: formData.email,
+      password: formData.password,
+    })
 
+    if (result.success) {
       navigate("/login", {
-        state: { message: "Registration successful! Please sign in with your new account." },
+        state: { message: result.message || "Registration successful! Please sign in with your new account." },
       })
-    } catch (err) {
-      console.error("Registration error:", err)
-    } finally {
-      setIsLoading(false)
+    } else {
+      console.error("Registration failed:", result.message)
     }
+
+    setIsLoading(false)
   }
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted">
@@ -92,7 +93,7 @@ const Register = () => {
         {error && <div className="bg-destructive/10 text-destructive p-3 rounded-md mb-4">{error}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
+          <div className="space-y-2">
             <label htmlFor="name" className="text-sm font-medium">
               Username
             </label>
@@ -120,7 +121,7 @@ const Register = () => {
             />
             {errors.name && <p className="text-destructive text-xs mt-1">{errors.name}</p>}
           </div>
-          
+
 
           <div className="space-y-2">
             <label htmlFor="email" className="text-sm font-medium">

@@ -54,19 +54,18 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     setError(null)
     try {
-      // For testing purposes in development
-      if (import.meta.env.DEV && !import.meta.env.VITE_API_STRICT_MODE) {
-        console.warn("Using mock registration in development mode")
-        return { success: true, message: "Registration successful" }
-      }
-      
+    
       const response = await api.post("/api/auth/register", userData)
-      return response.data
+  
+      return {
+        success: true,
+        message: response.data?.message || "Registration successful",
+      }
     } catch (error) {
       setError(error.response?.data?.message || "Registration failed")
-      throw error
+      return { success: false, message: error.response?.data?.message || "Registration failed" }
     }
-  }
+  }  
 
   const logout = async () => {
     try {
