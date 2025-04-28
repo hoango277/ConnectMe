@@ -29,8 +29,8 @@ public class SecurityConfig {
     @Autowired
     private JwtCookieFilter jwtCookieFilter;
 
-    private final String[] PUBLIC_ENDPOINT_POST = {"/api/auth/**", "/api/user/**"};
-    private final String[] PUBLIC_ENDPOINT_GET = {};
+    private final String[] PUBLIC_ENDPOINT_POST = {"/api/auth/**", "/api/users/**"};
+    private final String[] PUBLIC_ENDPOINT_GET = {"/api/users/me"};
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {

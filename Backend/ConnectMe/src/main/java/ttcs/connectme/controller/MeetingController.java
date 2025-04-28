@@ -14,24 +14,24 @@ public class MeetingController {
 
     private final MeetingService meetingService;
 
-    @PostMapping("/meeting")
-    public ApiResponse<MeetingResponse> createMeeting(@RequestBody MeetingRequest meetingRequest){
-        return meetingService.createMeeting(meetingRequest);
-    }
-
-    @GetMapping("/meeting/code/{meetingCode}")
-    public ApiResponse<MeetingResponse> getMeetingByCode(@PathVariable String meetingCode){
-        return meetingService.getMeetingByCode(meetingCode);
-    }
-
-    @PostMapping("/meeting/{id}/start")
-    public ApiResponse<MeetingResponse> startMeeting(@PathVariable Long id) {
-        return meetingService.startMeeting(id);
-    }
-
-    @PostMapping("/meeting/{id}/end")
-    public ApiResponse<MeetingResponse> endMeeting(@PathVariable Long id) {
-        return meetingService.endMeeting(id);
-    }
+//    @PostMapping("/meeting")
+//    public ApiResponse<MeetingResponse> createMeeting(@RequestBody MeetingRequest meetingRequest){
+//        return meetingService.createMeeting(meetingRequest);
+//    }
+//
+//    @GetMapping("/meeting/code/{meetingCode}")
+//    public ApiResponse<MeetingResponse> getMeetingByCode(@PathVariable String meetingCode){
+//        return meetingService.getMeetingByCode(meetingCode);
+//    }
+//
+//    @PostMapping("/meeting/{id}/start")
+//    public ApiResponse<MeetingResponse> startMeeting(@PathVariable Long id) {
+//        return meetingService.startMeeting(id);
+//    }
+//
+//    @PostMapping("/meeting/{id}/end")
+//    public ApiResponse<MeetingResponse> endMeeting(@PathVariable Long id) {
+//        return meetingService.endMeeting(id);
+//    }
 
 }
