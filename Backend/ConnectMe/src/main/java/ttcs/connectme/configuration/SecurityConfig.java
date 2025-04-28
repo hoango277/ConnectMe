@@ -29,18 +29,17 @@ public class SecurityConfig {
     @Autowired
     private JwtCookieFilter jwtCookieFilter;
 
-    private final String[] PUBLIC_ENDPOINT_POST = {"/api/auth/**", "/api/user/**"};
-    private final String[] PUBLIC_ENDPOINT_GET = {};
+    private final String[] PUBLIC_ENDPOINT_POST = {"/api/auth/**", "/api/users/**"};
+    private final String[] PUBLIC_ENDPOINT_GET = {"/api/users/me"};
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity
                 .authorizeHttpRequests(request ->
-//                        request.requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINT_POST).permitAll()
-//                                .requestMatchers(HttpMethod.GET, PUBLIC_ENDPOINT_GET).permitAll()
-//                                .requestMatchers("/css/**", "/js/**", "/images/**", "/ws/**").permitAll()
-//                                .anyRequest().authenticated()
-                                request.anyRequest().permitAll()
+                        request.requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINT_POST).permitAll()
+                                .requestMatchers(HttpMethod.GET, PUBLIC_ENDPOINT_GET).permitAll()
+                                .requestMatchers("/css/**", "/js/**", "/images/**", "/ws/**").permitAll()
+                                .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtCookieFilter, UsernamePasswordAuthenticationFilter.class)
                 .csrf(AbstractHttpConfigurer::disable)
