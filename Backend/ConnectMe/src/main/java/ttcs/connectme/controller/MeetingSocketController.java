@@ -25,12 +25,12 @@ public class MeetingSocketController {
     @MessageMapping("/meeting.join")
     public void joinMeeting(@Payload JoinMeetingRequest request, MeetingUserRequest meetingUserRequest) {
         // Process user joining the meeting
-        meetingUserService.addUser(meetingUserRequest, request.getMeeingCode(), request.getUserId());
+        meetingUserService.addUser(meetingUserRequest, request.getMeetingCode(), request.getUserId());
 
         // Broadcast to all participants that a new user joined
         messagingTemplate.convertAndSend(
-                "/topic/meeting." + request.getMeeingCode() + ".user.joined",
-                new UserJoinedEvent(request.getUserId(), request.getMeeingCode())
+                "/topic/meeting." + request.getMeetingCode() + ".user.joined",
+                new UserJoinedEvent(request.getUserId(), request.getMeetingCode())
         );
     }
 

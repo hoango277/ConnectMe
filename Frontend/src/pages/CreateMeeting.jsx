@@ -1,60 +1,73 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { meetingService } from "../services/meetingService"
 import { Calendar, Video, ArrowLeft } from "lucide-react"
+import { getCurrentUserId } from "../utils/auth"
 
 const CreateMeeting = () => {
   const navigate = useNavigate()
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    scheduledTime: "",
-    duration: 30,
-    isRecurring: false,
-    recurringPattern: "weekly",
-    participantEmails: "",
-    enableWaitingRoom: true,
+    password: "",
+    hostId: null,
+    actualStart: null
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
 
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      const userId = await getCurrentUserId()
+      if (!userId) {
+        navigate("/login")
+        return
+      }
+      setFormData(prev => ({ ...prev, hostId: userId }))
+    }
+    fetchCurrentUser()
+  }, [navigate])
+
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target
+    const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: value,
     }))
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (!formData.hostId) return
+
     setIsLoading(true)
     setError(null)
 
     try {
-      // Format participant emails as an array
-      const participantEmails = formData.participantEmails
-        ? formData.participantEmails.split(",").map((email) => email.trim())
-        : []
-
       const meetingData = {
         ...formData,
-        participantEmails,
+        actualStart: formData.actualStart ? new Date(formData.actualStart).toISOString() : null
       }
 
       const response = await meetingService.createMeeting(meetingData)
-      navigate(`/meeting/${response.id}`)
+      if (response.code === 200) {
+        navigate(`/meeting/${response.result.meetingCode}`)
+      } else {
+        throw new Error(response.message || "Failed to create meeting")
+      }
     } catch (err) {
       console.error("Error creating meeting:", err)
-      setError(err.response?.data?.message || "Failed to create meeting. Please try again.")
+      setError(err.message || "Failed to create meeting. Please try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleStartInstantMeeting = async () => {
+    if (!formData.hostId) return
+
     setIsLoading(true)
     setError(null)
 
@@ -62,17 +75,19 @@ const CreateMeeting = () => {
       const meetingData = {
         title: "Instant Meeting",
         description: "Instant meeting created on " + new Date().toLocaleString(),
-        scheduledTime: new Date().toISOString(),
-        duration: 60,
-        isRecurring: false,
-        enableWaitingRoom: false,
+        hostId: formData.hostId,
+        actualStart: new Date().toISOString()
       }
 
       const response = await meetingService.createMeeting(meetingData)
-      navigate(`/meeting/${response.id}`)
+      if (response.code === 200) {
+        navigate(`/meeting/${response.result.meetingCode}`)
+      } else {
+        throw new Error(response.message || "Failed to create meeting")
+      }
     } catch (err) {
       console.error("Error creating instant meeting:", err)
-      setError(err.response?.data?.message || "Failed to create meeting. Please try again.")
+      setError(err.message || "Failed to create meeting. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -125,17 +140,16 @@ const CreateMeeting = () => {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="scheduledTime" className="text-sm font-medium">
-                Date and Time *
+              <label htmlFor="actualStart" className="text-sm font-medium">
+                Date and Time
               </label>
               <input
-                id="scheduledTime"
-                name="scheduledTime"
+                id="actualStart"
+                name="actualStart"
                 type="datetime-local"
-                value={formData.scheduledTime}
+                value={formData.actualStart || ""}
                 onChange={handleChange}
                 className="input"
-                required
               />
             </div>
           </div>
@@ -154,90 +168,19 @@ const CreateMeeting = () => {
             />
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-2">
-              <label htmlFor="duration" className="text-sm font-medium">
-                Duration (minutes) *
-              </label>
-              <select
-                id="duration"
-                name="duration"
-                value={formData.duration}
-                onChange={handleChange}
-                className="input"
-                required
-              >
-                <option value="15">15 minutes</option>
-                <option value="30">30 minutes</option>
-                <option value="45">45 minutes</option>
-                <option value="60">1 hour</option>
-                <option value="90">1.5 hours</option>
-                <option value="120">2 hours</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="participantEmails" className="text-sm font-medium">
-                Participants (comma separated emails)
-              </label>
-              <input
-                id="participantEmails"
-                name="participantEmails"
-                type="text"
-                value={formData.participantEmails}
-                onChange={handleChange}
-                className="input"
-                placeholder="john@example.com, jane@example.com"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <input
-              id="isRecurring"
-              name="isRecurring"
-              type="checkbox"
-              checked={formData.isRecurring}
-              onChange={handleChange}
-              className="h-4 w-4 rounded border-input"
-            />
-            <label htmlFor="isRecurring" className="text-sm font-medium">
-              Recurring meeting
+          <div className="space-y-2">
+            <label htmlFor="password" className="text-sm font-medium">
+              Meeting Password (Optional)
             </label>
-          </div>
-
-          {formData.isRecurring && (
-            <div className="space-y-2">
-              <label htmlFor="recurringPattern" className="text-sm font-medium">
-                Recurring Pattern
-              </label>
-              <select
-                id="recurringPattern"
-                name="recurringPattern"
-                value={formData.recurringPattern}
-                onChange={handleChange}
-                className="input"
-              >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="biweekly">Bi-weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-            </div>
-          )}
-
-          <div className="flex items-center space-x-2">
             <input
-              id="enableWaitingRoom"
-              name="enableWaitingRoom"
-              type="checkbox"
-              checked={formData.enableWaitingRoom}
+              id="password"
+              name="password"
+              type="password"
+              value={formData.password}
               onChange={handleChange}
-              className="h-4 w-4 rounded border-input"
+              className="input"
+              placeholder="Enter meeting password"
             />
-            <label htmlFor="enableWaitingRoom" className="text-sm font-medium">
-              Enable waiting room
-            </label>
           </div>
 
           <div className="flex justify-end">

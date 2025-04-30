@@ -9,5 +9,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class JoinMeetingRequest {
     private Long userId;
-    private String meeingCode;
+    private String meetingCode;
 }
