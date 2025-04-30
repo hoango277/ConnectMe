@@ -23,7 +23,7 @@ public class MeetingUserEntity extends BaseEntity {
     Long id;
 
     @ManyToOne
-    @JoinColumn(name = "meeting_id", nullable = false)
+    @JoinColumn(name = "meeting_code", nullable = false)
     MeetingEntity meeting;
 
     @ManyToOne

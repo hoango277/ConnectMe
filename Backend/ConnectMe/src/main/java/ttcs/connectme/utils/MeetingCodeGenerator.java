@@ -1,4 +1,4 @@
-package ttcs.connectme.util;
+package ttcs.connectme.utils;
 
 import org.springframework.stereotype.Component;
 

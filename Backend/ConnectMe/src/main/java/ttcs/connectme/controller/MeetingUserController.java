@@ -14,13 +14,14 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@RequestMapping("/api")
 public class MeetingUserController {
     MeetingUserService meetingUserService;
 
-    @PostMapping(value = "/meetings/{meetingId}/users/{userId}")
-    public ApiResponse<MeetingUserResponse> addUser (@RequestBody MeetingUserRequest request, @PathVariable("meetingId") String meetingId, @PathVariable("userId") Long userId) {
+    @PostMapping(value = "/meetings/{meetingCode}/users/{userId}")
+    public ApiResponse<MeetingUserResponse> addUser (@RequestBody MeetingUserRequest request, @PathVariable("meetingCode") String meetingCode, @PathVariable("userId") Long userId) {
         return ApiResponse.<MeetingUserResponse>builder()
-                .result(meetingUserService.addUser(request, meetingId, userId))
+                .result(meetingUserService.addUser(request, meetingCode, userId))
                 .build();
     }
 
@@ -31,22 +32,22 @@ public class MeetingUserController {
                 .build();
     }
 
-    @PutMapping(value = "/meetings/{meetingId}/users/{userId}")
-    public ApiResponse<MeetingUserResponse> updateByMeetingIdAndUserId (@RequestBody MeetingUserRequest request, @PathVariable("meetingId") String meetingId, @PathVariable("userId") Long userId) {
+    @PutMapping(value = "/meetings/{meetingCode}/users/{userId}")
+    public ApiResponse<MeetingUserResponse> updateByMeetingIdAndUserId (@RequestBody MeetingUserRequest request, @PathVariable("meetingCode") String meetingCode, @PathVariable("userId") Long userId) {
         return ApiResponse.<MeetingUserResponse>builder()
-                .result(meetingUserService.updateByMeetingIdAndUserId(meetingId, userId, request))
+                .result(meetingUserService.updateByMeetingIdAndUserId(meetingCode, userId, request))
                 .build();
     }
 
-    @DeleteMapping(value = "/meetings/{meetingId}/users/{userId}")
-    public void deleteByMeetingIdAndUserId (@PathVariable("meetingId") String meetingId, @PathVariable("userId") Long userId) {
-        meetingUserService.deleteByMeetingIdAndUserId(meetingId, userId);
+    @DeleteMapping(value = "/meetings/{meetingCode}/users/{userId}")
+    public void deleteByMeetingIdAndUserId (@PathVariable("meetingCode") String meetingCode, @PathVariable("userId") Long userId) {
+        meetingUserService.deleteByMeetingIdAndUserId(meetingCode, userId);
     }
 
-    @GetMapping(value = "/meetings/{meetingId}/all")
-    public ApiResponse<List<MeetingUserResponse>> getAllByMeetingId (@PathVariable("meetingId") String meetingId) {
+    @GetMapping(value = "/meetings/{meetingCode}/all")
+    public ApiResponse<List<MeetingUserResponse>> getAllByMeetingId (@PathVariable("meetingCode") String meetingCode) {
         return ApiResponse.<List<MeetingUserResponse>>builder()
-                .result(meetingUserService.getAllByMeetingId(meetingId))
+                .result(meetingUserService.getAllByMeetingId(meetingCode))
                 .build();
     }
 }

@@ -8,6 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserLeftEvent {
-    private String userId;
-    private String meetingId;
+    private Long userId;
+    private String meetingCode;
 }
