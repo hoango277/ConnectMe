@@ -10,8 +10,7 @@ import java.util.Optional;
 
 @Repository
 public interface MeetingRepository extends JpaRepository<MeetingEntity, Long> {
-    Optional<MeetingEntity> findByMeetingCode(String meetingCode);
-    boolean existsByMeetingCode(String meetingCode);
-    Page<MeetingEntity> findByHostId(Long hostId, Pageable pageable);
-    Optional<MeetingEntity> findByIdAndIsDeletedFalse (Long id);
+    boolean existsByMeetingCodeAndIsDeletedFalse(String meetingCode);
+    Page<MeetingEntity> findByHostIdAndIsDeletedFalse(Long hostId, Pageable pageable);
+    Optional<MeetingEntity> findByIdAndIsDeletedFalse (String id);
 }

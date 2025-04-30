@@ -17,8 +17,7 @@ import java.time.LocalDateTime;
 public class MeetingEntity extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Long id;
+    String id;
 
     @Column(name = "title", nullable = false, length = 100)
     String title;

@@ -35,7 +35,7 @@ public class MeetingService {
 
         do {
             code = codeGenerator.generateMeetingCode();
-            isUnique = !meetingRepository.existsByMeetingCode(code);
+            isUnique = !meetingRepository.existsByMeetingCodeAndIsDeletedFalse(code);
         } while (!isUnique);
 
         return code;
@@ -81,7 +81,7 @@ public class MeetingService {
 
     @Transactional(readOnly = true)
     public ApiResponse<MeetingResponse> getMeetingByCode(String meetingCode) {
-        MeetingEntity meeting = meetingRepository.findByMeetingCode(meetingCode)
+        MeetingEntity meeting = meetingRepository.findByIdAndIsDeletedFalse(meetingCode)
                 .orElseThrow(() -> new AppException(ErrorCode.MEETING_NOT_FOUND));
 
         MeetingResponse response = meetingMapper.toResponse(meeting);
