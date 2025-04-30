@@ -1,50 +1,150 @@
 package ttcs.connectme.service;
 
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.transaction.annotation.Transactional;
+import ttcs.connectme.dto.request.MeetingRequest;
+import ttcs.connectme.dto.response.ApiResponse;
+import ttcs.connectme.dto.response.MeetingResponse;
+import ttcs.connectme.entity.MeetingEntity;
+import ttcs.connectme.entity.UserEntity;
+import ttcs.connectme.enums.ErrorCode;
+import ttcs.connectme.enums.MeetingStatus;
+import ttcs.connectme.exception.AppException;
+import ttcs.connectme.mapper.MeetingMapper;
+import ttcs.connectme.repository.MeetingRepository;
+import ttcs.connectme.repository.UserRepository;
+import ttcs.connectme.util.MeetingCodeGenerator;
+
+import java.time.LocalDateTime;
 
 @Service
+@RequiredArgsConstructor
+@Transactional
 public class MeetingService {
 
-    // In-memory store of active meetings and participants
-    // In a production environment, consider using a database or Redis
-    private final Map<String, Set<String>> meetingParticipants = new ConcurrentHashMap<>();
+    private final MeetingRepository meetingRepository;
+    private final UserRepository userRepository;
+    private final MeetingMapper meetingMapper;
+    private final MeetingCodeGenerator codeGenerator;
 
-    /**
-     * Add a participant to a meeting
-     */
-    public void addParticipant(String meetingId, String userId) {
-        meetingParticipants.computeIfAbsent(meetingId, k -> ConcurrentHashMap.newKeySet())
-                .add(userId);
+    private String generateUniqueMeetingCode() {
+        String code;
+        boolean isUnique = false;
+
+        do {
+            code = codeGenerator.generateMeetingCode();
+            isUnique = !meetingRepository.existsByMeetingCode(code);
+        } while (!isUnique);
+
+        return code;
     }
 
-    /**
-     * Remove a participant from a meeting
-     */
-    public void removeParticipant(String meetingId, String userId) {
-        if (meetingParticipants.containsKey(meetingId)) {
-            meetingParticipants.get(meetingId).remove(userId);
+    public ApiResponse<MeetingResponse> createMeeting(MeetingRequest request) {
+        UserEntity host = userRepository.findById(request.getHostId())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-            // If meeting is empty, remove it
-            if (meetingParticipants.get(meetingId).isEmpty()) {
-                meetingParticipants.remove(meetingId);
-            }
+        String meetingCode = generateUniqueMeetingCode();
+
+        MeetingEntity meeting = new MeetingEntity();
+        meeting.setTitle(request.getTitle());
+        meeting.setDescription(request.getDescription());
+        meeting.setMeetingCode(meetingCode);
+        meeting.setPassword(request.getPassword());
+        meeting.setHost(host);
+        LocalDateTime startTime;
+        if (request.getActualStart() != null) {
+            startTime = request.getActualStart();
+            meeting.setMeetingStatus(MeetingStatus.SCHEDULED);
+        } else {
+            startTime = LocalDateTime.now();
+            meeting.setMeetingStatus(MeetingStatus.ONGOING);
         }
+        meeting.setActualStart(startTime);
+        meeting.setActualEnd(startTime.plusMinutes(30));
+        meeting.setCurrentParticipants(0);
+        meeting.setTotalParticipants(0);
+        meeting.setChatMessageCount(0);
+
+        MeetingEntity savedMeeting = meetingRepository.save(meeting);
+
+        MeetingResponse response = meetingMapper.toResponse(savedMeeting);
+        response.setHostId(request.getHostId());
+
+        return ApiResponse.<MeetingResponse>builder()
+                .code(200)
+                .message("Success")
+                .result(response)
+                .build();
     }
 
-    /**
-     * Get all participants in a meeting
-     */
-    public Set<String> getParticipants(String meetingId) {
-        return meetingParticipants.getOrDefault(meetingId, ConcurrentHashMap.newKeySet());
+    @Transactional(readOnly = true)
+    public ApiResponse<MeetingResponse> getMeetingByCode(String meetingCode) {
+        MeetingEntity meeting = meetingRepository.findByMeetingCode(meetingCode)
+                .orElseThrow(() -> new AppException(ErrorCode.MEETING_NOT_FOUND));
+
+        MeetingResponse response = meetingMapper.toResponse(meeting);
+        response.setHostId(meeting.getHost().getId());
+        return ApiResponse.<MeetingResponse>builder()
+                .code(200)
+                .message("Success")
+                .result(response)
+                .build();
     }
 
-    /**
-     * Check if a meeting exists
-     */
-    public boolean meetingExists(String meetingId) {
-        return meetingParticipants.containsKey(meetingId);
+    public ApiResponse<MeetingResponse> startMeeting(Long id) {
+        MeetingEntity meeting = meetingRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.MEETING_NOT_FOUND));
+
+        if (meeting.getMeetingStatus() != MeetingStatus.SCHEDULED) {
+            return ApiResponse.<MeetingResponse>builder()
+                    .code(400)
+                    .message("Only scheduled meetings can be started")
+                    .build();
+        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime scheduledStart = meeting.getActualStart();
+
+        if (scheduledStart.isAfter(now)) {
+            meeting.setActualStart(now);
+            meeting.setActualEnd(now.plusMinutes(30));
+        }
+        meeting.setMeetingStatus(MeetingStatus.ONGOING);
+        MeetingEntity updatedMeeting = meetingRepository.save(meeting);
+        MeetingResponse response = meetingMapper.toResponse(updatedMeeting);
+        response.setHostId(meeting.getHost().getId());
+
+        return ApiResponse.<MeetingResponse>builder()
+                .code(200)
+                .message("Meeting started successfully")
+                .result(response)
+                .build();
+    }
+
+    public ApiResponse<MeetingResponse> endMeeting(Long id) {
+        MeetingEntity meeting = meetingRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.MEETING_NOT_FOUND));
+
+        if (meeting.getMeetingStatus() != MeetingStatus.ONGOING) {
+            return ApiResponse.<MeetingResponse>builder()
+                    .code(400)
+                    .message("Only ongoing meetings can be ended")
+                    .build();
+        }
+
+        meeting.setMeetingStatus(MeetingStatus.ENDED);
+        meeting.setActualEnd(LocalDateTime.now());
+        meeting.setCurrentParticipants(0);
+
+        MeetingEntity updatedMeeting = meetingRepository.save(meeting);
+        MeetingResponse response = meetingMapper.toResponse(updatedMeeting);
+        response.setHostId(meeting.getHost().getId());
+
+        return ApiResponse.<MeetingResponse>builder()
+                .code(200)
+                .message("Meeting ended successfully")
+                .result(response)
+                .build();
     }
 }

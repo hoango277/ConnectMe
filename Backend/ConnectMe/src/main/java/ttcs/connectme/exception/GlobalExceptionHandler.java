@@ -2,14 +2,11 @@ package ttcs.connectme.exception;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import ttcs.connectme.dto.response.ApiResponse;
 import ttcs.connectme.enums.ErrorCode;
-
-import java.util.Objects;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
