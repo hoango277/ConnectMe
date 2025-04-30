@@ -41,7 +41,9 @@ public class MeetingUserService {
         MeetingUserEntity meetingUser = meetingUserMapper.toEntity(request);
         meetingUser.setMeeting(meeting);
         meetingUser.setUser(user);
-        meetingUser.setInvitationStatus(InvitationStatus.PENDING);
+        if (meetingUser.getInvitationStatus() == null) {
+            meetingUser.setInvitationStatus(InvitationStatus.PENDING);
+        }
 
         return meetingUserMapper.toResponse(meetingUserRepository.save(meetingUser));
     }

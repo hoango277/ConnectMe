@@ -94,7 +94,7 @@ const Dashboard = () => {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {upcomingMeetings.map((meeting) => (
-                <div key={meeting.id} className="bg-background border rounded-lg shadow-sm overflow-hidden">
+                <div key={meeting.meetingCode} className="bg-background border rounded-lg shadow-sm overflow-hidden">
                   <div className="p-5">
                     <h3 className="font-semibold text-lg mb-2">{meeting.title}</h3>
                     <div className="space-y-2 text-sm">
@@ -116,7 +116,7 @@ const Dashboard = () => {
                     <div className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
                       Meeting ID: {meeting.meetingCode}
                     </div>
-                    <Link to={`/meeting/${meeting.id}`} className="text-primary hover:underline text-sm font-medium">
+                    <Link to={`/meeting/${meeting.meetingCode}`} className="text-primary hover:underline text-sm font-medium">
                       Join
                     </Link>
                   </div>
@@ -146,7 +146,7 @@ const Dashboard = () => {
                 </thead>
                 <tbody>
                   {pastMeetings.map((meeting) => (
-                    <tr key={meeting.id} className="border-b hover:bg-muted/50">
+                    <tr key={meeting.meetingCode} className="border-b hover:bg-muted/50">
                       <td className="p-3">{meeting.title}</td>
                       <td className="p-3">{formatDate(meeting.scheduledTime)}</td>
                       <td className="p-3">{meeting.duration} minutes</td>

@@ -18,8 +18,12 @@ const JoinMeeting = () => {
     setError(null)
 
     try {
-      const response = await meetingService.joinMeeting(meetingCode)
-      navigate(`/meeting/${response.meetingId}`)
+      const response = await meetingService.joinMeeting(meetingCode, displayName)
+      if (response.success) {
+        navigate(`/meeting/${response.meetingCode}`)
+      } else {
+        throw new Error("Failed to join meeting")
+      }
     } catch (err) {
       console.error("Error joining meeting:", err)
       setError(err.response?.data?.message || "Failed to join meeting. Please check the meeting code and try again.")
