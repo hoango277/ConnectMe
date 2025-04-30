@@ -17,33 +17,33 @@ import java.util.List;
 public class MeetingUserController {
     MeetingUserService meetingUserService;
 
-    @PostMapping(value = "/meeting/{meetingId}/user/{userId}")
+    @PostMapping(value = "/meetings/{meetingId}/users/{userId}")
     public ApiResponse<MeetingUserResponse> addUser (@RequestBody MeetingUserRequest request, @PathVariable("meetingId") Long meetingId, @PathVariable("userId") Long userId) {
         return ApiResponse.<MeetingUserResponse>builder()
                 .result(meetingUserService.addUser(request, meetingId, userId))
                 .build();
     }
 
-    @PutMapping(value = "/meeting-user/{id}")
+    @PutMapping(value = "/meeting-users/{id}")
     public ApiResponse<MeetingUserResponse> updateById (@RequestBody MeetingUserRequest request, @PathVariable("id") Long id) {
         return ApiResponse.<MeetingUserResponse>builder()
                 .result(meetingUserService.updateById(id, request))
                 .build();
     }
 
-    @PutMapping(value = "/meeting/{meetingId}/user/{userId}")
+    @PutMapping(value = "/meetings/{meetingId}/users/{userId}")
     public ApiResponse<MeetingUserResponse> updateByMeetingIdAndUserId (@RequestBody MeetingUserRequest request, @PathVariable("meetingId") Long meetingId, @PathVariable("userId") Long userId) {
         return ApiResponse.<MeetingUserResponse>builder()
                 .result(meetingUserService.updateByMeetingIdAndUserId(meetingId, userId, request))
                 .build();
     }
 
-    @DeleteMapping(value = "/meeting/{meetingId}/user/{userId}")
+    @DeleteMapping(value = "/meetings/{meetingId}/users/{userId}")
     public void deleteByMeetingIdAndUserId (@PathVariable("meetingId") Long meetingId, @PathVariable("userId") Long userId) {
         meetingUserService.deleteByMeetingIdAndUserId(meetingId, userId);
     }
 
-    @GetMapping(value = "/meeting/{meetingId}/all")
+    @GetMapping(value = "/meetings/{meetingId}/all")
     public ApiResponse<List<MeetingUserResponse>> getAllByMeetingId (@PathVariable("meetingId") Long meetingId) {
         return ApiResponse.<List<MeetingUserResponse>>builder()
                 .result(meetingUserService.getAllByMeetingId(meetingId))
