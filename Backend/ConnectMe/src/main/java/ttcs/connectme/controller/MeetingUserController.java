@@ -18,7 +18,7 @@ public class MeetingUserController {
     MeetingUserService meetingUserService;
 
     @PostMapping(value = "/meetings/{meetingId}/users/{userId}")
-    public ApiResponse<MeetingUserResponse> addUser (@RequestBody MeetingUserRequest request, @PathVariable("meetingId") Long meetingId, @PathVariable("userId") Long userId) {
+    public ApiResponse<MeetingUserResponse> addUser (@RequestBody MeetingUserRequest request, @PathVariable("meetingId") String meetingId, @PathVariable("userId") Long userId) {
         return ApiResponse.<MeetingUserResponse>builder()
                 .result(meetingUserService.addUser(request, meetingId, userId))
                 .build();
@@ -32,19 +32,19 @@ public class MeetingUserController {
     }
 
     @PutMapping(value = "/meetings/{meetingId}/users/{userId}")
-    public ApiResponse<MeetingUserResponse> updateByMeetingIdAndUserId (@RequestBody MeetingUserRequest request, @PathVariable("meetingId") Long meetingId, @PathVariable("userId") Long userId) {
+    public ApiResponse<MeetingUserResponse> updateByMeetingIdAndUserId (@RequestBody MeetingUserRequest request, @PathVariable("meetingId") String meetingId, @PathVariable("userId") Long userId) {
         return ApiResponse.<MeetingUserResponse>builder()
                 .result(meetingUserService.updateByMeetingIdAndUserId(meetingId, userId, request))
                 .build();
     }
 
     @DeleteMapping(value = "/meetings/{meetingId}/users/{userId}")
-    public void deleteByMeetingIdAndUserId (@PathVariable("meetingId") Long meetingId, @PathVariable("userId") Long userId) {
+    public void deleteByMeetingIdAndUserId (@PathVariable("meetingId") String meetingId, @PathVariable("userId") Long userId) {
         meetingUserService.deleteByMeetingIdAndUserId(meetingId, userId);
     }
 
     @GetMapping(value = "/meetings/{meetingId}/all")
-    public ApiResponse<List<MeetingUserResponse>> getAllByMeetingId (@PathVariable("meetingId") Long meetingId) {
+    public ApiResponse<List<MeetingUserResponse>> getAllByMeetingId (@PathVariable("meetingId") String meetingId) {
         return ApiResponse.<List<MeetingUserResponse>>builder()
                 .result(meetingUserService.getAllByMeetingId(meetingId))
                 .build();

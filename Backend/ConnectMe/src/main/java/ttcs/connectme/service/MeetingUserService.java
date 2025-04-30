@@ -29,7 +29,7 @@ public class MeetingUserService {
     MeetingRepository meetingRepository;
     UserRepository userRepository;
 
-    public MeetingUserResponse addUser (MeetingUserRequest request, Long meetingId, Long userId) {
+    public MeetingUserResponse addUser (MeetingUserRequest request, String meetingId, Long userId) {
         if (meetingUserRepository.existsByMeetingIdAndUserIdAndIsDeletedFalse(meetingId, userId)) {
             throw new AppException(ErrorCode.USER_ALREADY_IN_MEETING);
         }
@@ -54,7 +54,7 @@ public class MeetingUserService {
         return meetingUserMapper.toResponse(meetingUserRepository.save(meetingUser));
     }
 
-    public MeetingUserResponse updateByMeetingIdAndUserId (Long meetingId, Long userId, MeetingUserRequest request) {
+    public MeetingUserResponse updateByMeetingIdAndUserId (String meetingId, Long userId, MeetingUserRequest request) {
         MeetingUserEntity meetingUser = meetingUserRepository.findByMeetingIdAndUserIdAndIsDeletedFalse(meetingId, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.MEETING_USER_NOT_FOUND));
 
@@ -72,7 +72,7 @@ public class MeetingUserService {
         return meetingUserMapper.toResponse(meetingUserRepository.save(meetingUser));
     }
 
-    public void deleteByMeetingIdAndUserId (Long meetingId, Long userId) {
+    public void deleteByMeetingIdAndUserId (String meetingId, Long userId) {
         MeetingUserEntity meetingUser = meetingUserRepository.findByMeetingIdAndUserIdAndIsDeletedFalse(meetingId, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.MEETING_USER_NOT_FOUND));
 
@@ -83,7 +83,7 @@ public class MeetingUserService {
         meetingUserRepository.save(meetingUser);
     }
 
-    public List<MeetingUserResponse> getAllByMeetingId (Long meetingId) {
+    public List<MeetingUserResponse> getAllByMeetingId (String meetingId) {
         return meetingUserRepository.getAllByMeetingIdAndIsDeletedFalse(meetingId)
                 .stream().map(meetingUserMapper::toResponse).toList();
     }
