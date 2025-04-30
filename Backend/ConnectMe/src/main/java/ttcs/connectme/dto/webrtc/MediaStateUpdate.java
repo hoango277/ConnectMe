@@ -8,8 +8,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MediaStateUpdate {
-    private String userId;
-    private String meetingId;
+    private Long userId;
+    private String meetingCode;
     private String mediaType; // "audio", "video"
     private boolean enabled;
 }

@@ -25,12 +25,12 @@ public class MeetingSocketController {
     @MessageMapping("/meeting.join")
     public void joinMeeting(@Payload JoinMeetingRequest request, MeetingUserRequest meetingUserRequest) {
         // Process user joining the meeting
-        meetingUserService.addUser(meetingUserRequest, request.getMeetingId(), Long.parseLong(request.getUserId()));
+        meetingUserService.addUser(meetingUserRequest, request.getMeeingCode(), request.getUserId());
 
         // Broadcast to all participants that a new user joined
         messagingTemplate.convertAndSend(
-                "/topic/meeting." + request.getMeetingId() + ".user.joined",
-                new UserJoinedEvent(request.getUserId(), request.getMeetingId())
+                "/topic/meeting." + request.getMeeingCode() + ".user.joined",
+                new UserJoinedEvent(request.getUserId(), request.getMeeingCode())
         );
     }
 
@@ -40,13 +40,13 @@ public class MeetingSocketController {
     @MessageMapping("/meeting.leave")
     public void leaveMeeting(@Payload LeaveMeetingRequest request) {
         // Process user leaving the meeting
-        meetingUserService.deleteByMeetingIdAndUserId(request.getMeetingId(),
-                Long.parseLong(request.getUserId()));
+        meetingUserService.deleteByMeetingIdAndUserId(request.getMeetingCode(),
+                request.getUserId());
 
         // Broadcast to all participants that a user left
         messagingTemplate.convertAndSend(
-                "/topic/meeting." + request.getMeetingId() + ".user.left",
-                new UserLeftEvent(request.getUserId(), request.getMeetingId())
+                "/topic/meeting." + request.getMeetingCode() + ".user.left",
+                new UserLeftEvent(request.getUserId(), request.getMeetingCode())
         );
     }
 
@@ -58,7 +58,7 @@ public class MeetingSocketController {
         // Forward the signal to the specific user
         messagingTemplate.convertAndSendToUser(
                 request.getTargetUserId(),
-                "/topic/meeting." + request.getMeetingId() + ".signal",
+                "/topic/meeting." + request.getMeetingCode() + ".signal",
                 request
         );
     }
@@ -70,7 +70,7 @@ public class MeetingSocketController {
     public void sendChatMessage(@Payload ChatMessage message) {
         // Broadcast the chat message to all participants
         messagingTemplate.convertAndSend(
-                "/topic/meeting." + message.getMeetingId() + ".chat",
+                "/topic/meeting." + message.getMeetingCode() + ".chat",
                 message
         );
     }
@@ -82,7 +82,7 @@ public class MeetingSocketController {
     public void sendFile(@Payload FileTransfer file) {
         // Broadcast the file to all participants
         messagingTemplate.convertAndSend(
-                "/topic/meeting." + file.getMeetingId() + ".file",
+                "/topic/meeting." + file.getMeetingCode() + ".file",
                 file
         );
     }
@@ -94,7 +94,7 @@ public class MeetingSocketController {
     public void updateMediaState(@Payload MediaStateUpdate update) {
         // Broadcast the media state change to all participants
         messagingTemplate.convertAndSend(
-                "/topic/meeting." + update.getMeetingId() + ".media.state",
+                "/topic/meeting." + update.getMeetingCode() + ".media.state",
                 update
         );
     }

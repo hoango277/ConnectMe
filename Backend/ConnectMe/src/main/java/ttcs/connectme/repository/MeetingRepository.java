@@ -12,5 +12,5 @@ import java.util.Optional;
 public interface MeetingRepository extends JpaRepository<MeetingEntity, Long> {
     boolean existsByMeetingCodeAndIsDeletedFalse(String meetingCode);
     Page<MeetingEntity> findByHostIdAndIsDeletedFalse(Long hostId, Pageable pageable);
-    Optional<MeetingEntity> findByIdAndIsDeletedFalse (String id);
+    Optional<MeetingEntity> findByMeetingCodeAndIsDeletedFalse (String meetingCode);
 }

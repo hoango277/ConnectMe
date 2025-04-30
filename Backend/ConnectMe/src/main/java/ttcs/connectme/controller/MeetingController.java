@@ -14,22 +14,22 @@ public class MeetingController {
 
     private final MeetingService meetingService;
 
-    @PostMapping("/meeting")
+    @PostMapping("/meetings")
     public ApiResponse<MeetingResponse> createMeeting(@RequestBody MeetingRequest meetingRequest){
         return meetingService.createMeeting(meetingRequest);
     }
 
-    @GetMapping("/meeting/code/{meetingCode}")
+    @GetMapping("/meetings/code/{meetingCode}")
     public ApiResponse<MeetingResponse> getMeetingByCode(@PathVariable String meetingCode){
         return meetingService.getMeetingByCode(meetingCode);
     }
 
-    @PostMapping("/meeting/{id}/start")
+    @PostMapping("/meetings/{id}/start")
     public ApiResponse<MeetingResponse> startMeeting(@PathVariable Long id) {
         return meetingService.startMeeting(id);
     }
 
-    @PostMapping("/meeting/{id}/end")
+    @PostMapping("/meetings/{id}/end")
     public ApiResponse<MeetingResponse> endMeeting(@PathVariable Long id) {
         return meetingService.endMeeting(id);
     }

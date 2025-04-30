@@ -1,7 +1,6 @@
 package ttcs.connectme.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ttcs.connectme.dto.request.MeetingRequest;
@@ -15,7 +14,7 @@ import ttcs.connectme.exception.AppException;
 import ttcs.connectme.mapper.MeetingMapper;
 import ttcs.connectme.repository.MeetingRepository;
 import ttcs.connectme.repository.UserRepository;
-import ttcs.connectme.util.MeetingCodeGenerator;
+import ttcs.connectme.utils.MeetingCodeGenerator;
 
 import java.time.LocalDateTime;
 
@@ -81,7 +80,7 @@ public class MeetingService {
 
     @Transactional(readOnly = true)
     public ApiResponse<MeetingResponse> getMeetingByCode(String meetingCode) {
-        MeetingEntity meeting = meetingRepository.findByIdAndIsDeletedFalse(meetingCode)
+        MeetingEntity meeting = meetingRepository.findByMeetingCodeAndIsDeletedFalse(meetingCode)
                 .orElseThrow(() -> new AppException(ErrorCode.MEETING_NOT_FOUND));
 
         MeetingResponse response = meetingMapper.toResponse(meeting);

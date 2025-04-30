@@ -29,11 +29,11 @@ public class MeetingUserService {
     MeetingRepository meetingRepository;
     UserRepository userRepository;
 
-    public MeetingUserResponse addUser (MeetingUserRequest request, String meetingId, Long userId) {
-        if (meetingUserRepository.existsByMeetingIdAndUserIdAndIsDeletedFalse(meetingId, userId)) {
+    public MeetingUserResponse addUser (MeetingUserRequest request, String meetingCode, Long userId) {
+        if (meetingUserRepository.existsByMeetingMeetingCodeAndUserIdAndIsDeletedFalse(meetingCode, userId)) {
             throw new AppException(ErrorCode.USER_ALREADY_IN_MEETING);
         }
-        MeetingEntity meeting = meetingRepository.findByIdAndIsDeletedFalse(meetingId)
+        MeetingEntity meeting = meetingRepository.findByMeetingCodeAndIsDeletedFalse(meetingCode)
                 .orElseThrow(() -> new AppException(ErrorCode.MEETING_NOT_FOUND));
         UserEntity user = userRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
@@ -54,8 +54,8 @@ public class MeetingUserService {
         return meetingUserMapper.toResponse(meetingUserRepository.save(meetingUser));
     }
 
-    public MeetingUserResponse updateByMeetingIdAndUserId (String meetingId, Long userId, MeetingUserRequest request) {
-        MeetingUserEntity meetingUser = meetingUserRepository.findByMeetingIdAndUserIdAndIsDeletedFalse(meetingId, userId)
+    public MeetingUserResponse updateByMeetingIdAndUserId (String meetingCode, Long userId, MeetingUserRequest request) {
+        MeetingUserEntity meetingUser = meetingUserRepository.findByMeetingMeetingCodeAndUserIdAndIsDeletedFalse(meetingCode, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.MEETING_USER_NOT_FOUND));
 
         meetingUserMapper.update(meetingUser, request);
@@ -72,8 +72,8 @@ public class MeetingUserService {
         return meetingUserMapper.toResponse(meetingUserRepository.save(meetingUser));
     }
 
-    public void deleteByMeetingIdAndUserId (String meetingId, Long userId) {
-        MeetingUserEntity meetingUser = meetingUserRepository.findByMeetingIdAndUserIdAndIsDeletedFalse(meetingId, userId)
+    public void deleteByMeetingIdAndUserId (String meetingCode, Long userId) {
+        MeetingUserEntity meetingUser = meetingUserRepository.findByMeetingMeetingCodeAndUserIdAndIsDeletedFalse(meetingCode, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.MEETING_USER_NOT_FOUND));
 
         meetingUser.setIsDeleted(true);
@@ -83,8 +83,8 @@ public class MeetingUserService {
         meetingUserRepository.save(meetingUser);
     }
 
-    public List<MeetingUserResponse> getAllByMeetingId (String meetingId) {
-        return meetingUserRepository.getAllByMeetingIdAndIsDeletedFalse(meetingId)
+    public List<MeetingUserResponse> getAllByMeetingId (String meetingCode) {
+        return meetingUserRepository.getAllByMeetingMeetingCodeAndIsDeletedFalse(meetingCode)
                 .stream().map(meetingUserMapper::toResponse).toList();
     }
 }
