@@ -10,7 +10,7 @@ import java.util.Optional;
 @Repository
 public interface MeetingUserRepository extends JpaRepository<MeetingUserEntity, Long> {
     Optional<MeetingUserEntity> findByIdAndIsDeletedFalse (Long id);
-    boolean existsByMeetingIdAndUserIdAndIsDeletedFalse (Long meetingId, Long userId);
-    Optional<MeetingUserEntity> findByMeetingIdAndUserIdAndIsDeletedFalse (Long meetingId, Long userId);
-    List<MeetingUserEntity> getAllByMeetingIdAndIsDeletedFalse (Long meetingId);
+    boolean existsByMeetingMeetingCodeAndUserIdAndIsDeletedFalse (String meetingCode, Long userId);
+    Optional<MeetingUserEntity> findByMeetingMeetingCodeAndUserIdAndIsDeletedFalse (String meetingCode, Long userId);
+    List<MeetingUserEntity> getAllByMeetingMeetingCodeAndIsDeletedFalse (String meetingCode);
 }

@@ -11,6 +11,6 @@ public class SignalRequest {
     private String type; // "offer", "answer", "ice-candidate"
     private String from;
     private String targetUserId;
-    private String meetingId;
+    private String meetingCode;
     private String payload; // JSON stringified SDP or ICE candidate
 }

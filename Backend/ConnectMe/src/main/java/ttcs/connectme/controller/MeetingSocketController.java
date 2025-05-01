@@ -5,8 +5,10 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
+import ttcs.connectme.dto.request.MeetingUserRequest;
 import ttcs.connectme.dto.webrtc.*;
 import ttcs.connectme.service.MeetingService;
+import ttcs.connectme.service.MeetingUserService;
 
 @Controller
 public class MeetingSocketController {
@@ -15,20 +17,20 @@ public class MeetingSocketController {
     private SimpMessagingTemplate messagingTemplate;
 
     @Autowired
-    private MeetingService meetingService;
+    private MeetingUserService meetingUserService;
 
     /**
      * Handle user joining a meeting
      */
     @MessageMapping("/meeting.join")
-    public void joinMeeting(@Payload JoinMeetingRequest request) {
+    public void joinMeeting(@Payload JoinMeetingRequest request, MeetingUserRequest meetingUserRequest) {
         // Process user joining the meeting
-        meetingService.addParticipant(request.getMeetingId(), request.getUserId());
+        meetingUserService.addUser(meetingUserRequest, request.getMeetingCode(), request.getUserId());
 
         // Broadcast to all participants that a new user joined
         messagingTemplate.convertAndSend(
-                "/topic/meeting." + request.getMeetingId() + ".user.joined",
-                new UserJoinedEvent(request.getUserId(), request.getMeetingId())
+                "/topic/meeting." + request.getMeetingCode() + ".user.joined",
+                new UserJoinedEvent(request.getUserId(), request.getMeetingCode())
         );
     }
 
@@ -38,12 +40,13 @@ public class MeetingSocketController {
     @MessageMapping("/meeting.leave")
     public void leaveMeeting(@Payload LeaveMeetingRequest request) {
         // Process user leaving the meeting
-        meetingService.removeParticipant(request.getMeetingId(), request.getUserId());
+        meetingUserService.deleteByMeetingIdAndUserId(request.getMeetingCode(),
+                request.getUserId());
 
         // Broadcast to all participants that a user left
         messagingTemplate.convertAndSend(
-                "/topic/meeting." + request.getMeetingId() + ".user.left",
-                new UserLeftEvent(request.getUserId(), request.getMeetingId())
+                "/topic/meeting." + request.getMeetingCode() + ".user.left",
+                new UserLeftEvent(request.getUserId(), request.getMeetingCode())
         );
     }
 
@@ -55,7 +58,7 @@ public class MeetingSocketController {
         // Forward the signal to the specific user
         messagingTemplate.convertAndSendToUser(
                 request.getTargetUserId(),
-                "/topic/meeting." + request.getMeetingId() + ".signal",
+                "/topic/meeting." + request.getMeetingCode() + ".signal",
                 request
         );
     }
@@ -67,7 +70,7 @@ public class MeetingSocketController {
     public void sendChatMessage(@Payload ChatMessage message) {
         // Broadcast the chat message to all participants
         messagingTemplate.convertAndSend(
-                "/topic/meeting." + message.getMeetingId() + ".chat",
+                "/topic/meeting." + message.getMeetingCode() + ".chat",
                 message
         );
     }
@@ -79,7 +82,7 @@ public class MeetingSocketController {
     public void sendFile(@Payload FileTransfer file) {
         // Broadcast the file to all participants
         messagingTemplate.convertAndSend(
-                "/topic/meeting." + file.getMeetingId() + ".file",
+                "/topic/meeting." + file.getMeetingCode() + ".file",
                 file
         );
     }
@@ -91,7 +94,7 @@ public class MeetingSocketController {
     public void updateMediaState(@Payload MediaStateUpdate update) {
         // Broadcast the media state change to all participants
         messagingTemplate.convertAndSend(
-                "/topic/meeting." + update.getMeetingId() + ".media.state",
+                "/topic/meeting." + update.getMeetingCode() + ".media.state",
                 update
         );
     }

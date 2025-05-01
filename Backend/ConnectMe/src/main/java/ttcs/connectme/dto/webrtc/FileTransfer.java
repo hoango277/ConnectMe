@@ -8,9 +8,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FileTransfer {
-    private String senderId;
+    private Long senderId;
     private String senderName;
-    private String meetingId;
+    private String meetingCode;
     private String fileName;
     private String fileType;
     private long fileSize;
