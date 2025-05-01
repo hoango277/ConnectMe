@@ -15,7 +15,6 @@ public interface MeetingMapper {
 
     MeetingResponse toResponse(MeetingEntity entity);
 
-    @Mapping(target = "id", ignore = true)
     @Mapping(target = "host", ignore = true)
     @Mapping(target = "meetingCode", ignore = true)
     @Mapping(target = "actualStart", ignore = true)

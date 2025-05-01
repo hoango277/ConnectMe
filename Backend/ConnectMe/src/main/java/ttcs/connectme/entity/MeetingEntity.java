@@ -15,19 +15,15 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Table(name = "meetings")
 public class MeetingEntity extends BaseEntity {
-
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Long id;
+    @Column(name = "meeting_code", nullable = false, unique = true, length = 10)
+    String meetingCode;
 
     @Column(name = "title", nullable = false, length = 100)
     String title;
 
     @Column(name = "description", columnDefinition = "TEXT")
     String description;
-
-    @Column(name = "meeting_code", nullable = false, unique = true, length = 10)
-    String meetingCode;
 
     @Column(name = "password")
     String password;

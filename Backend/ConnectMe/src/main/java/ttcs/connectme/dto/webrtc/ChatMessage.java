@@ -8,10 +8,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatMessage {
-    private String id;
-    private String senderId;
+    private Long id;
+    private Long senderId;
     private String senderName;
-    private String meetingId;
+    private String meetingCode;
     private String text;
     private String timestamp;
     private String type; // "user", "system"

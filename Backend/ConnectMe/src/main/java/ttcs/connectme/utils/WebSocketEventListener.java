@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import ttcs.connectme.dto.webrtc.UserLeftEvent;
 import ttcs.connectme.service.MeetingService;
+import ttcs.connectme.service.MeetingUserService;
 
 import java.util.Map;
 
@@ -23,7 +24,7 @@ public class WebSocketEventListener {
     private SimpMessagingTemplate messagingTemplate;
 
     @Autowired
-    private MeetingService meetingService;
+    private MeetingUserService meetingUserService;
 
     /**
      * Handle WebSocket disconnect events
@@ -37,19 +38,20 @@ public class WebSocketEventListener {
         Map<String, Object> attributes = headerAccessor.getSessionAttributes();
         if (attributes == null) return;
 
-        String userId = (String) attributes.get("userId");
-        String meetingId = (String) attributes.get("meetingId");
+        Long userId = (Long) attributes.get("userId");
+        String meetingCode = (String) attributes.get("meetingId");
 
-        if (userId != null && meetingId != null) {
+        if (userId != null && meetingCode != null) {
             logger.info("User disconnected: {}", userId);
 
             // Remove user from meeting
-            meetingService.removeParticipant(meetingId, userId);
+            meetingUserService.deleteByMeetingIdAndUserId(meetingCode,
+                    userId);
 
             // Notify other participants
             messagingTemplate.convertAndSend(
-                    "/topic/meeting." + meetingId + ".user.left",
-                    new UserLeftEvent(userId, meetingId)
+                    "/topic/meeting." + meetingCode + ".user.left",
+                    new UserLeftEvent(userId, meetingCode)
             );
         }
     }

@@ -25,7 +25,7 @@ import {
 } from "lucide-react"
 
 const MeetingRoom = () => {
-  const { meetingId } = useParams()
+  const { meetingCode } = useParams()
   const navigate = useNavigate()
   const currentUser = useAuth().currentUser
 
@@ -56,24 +56,27 @@ const MeetingRoom = () => {
 
   // Initialize meeting and WebRTC
   useEffect(() => {
-
     const initializeMeeting = async () => {
       try {
         // Fetch meeting details
-        const meetingData = await meetingService.getMeeting(meetingId)
-        console.log(meetingData);
-        setMeeting(meetingData)
-        setIsHost(meetingData.hostId === currentUser.id)
+        const meetingData = await meetingService.getMeeting(meetingCode)
+        if (meetingData.code === 200) {
+          setMeeting(meetingData.result)
+          setIsHost(meetingData.result.hostId === currentUser.id)
 
-        // Initialize WebRTC
-        await initializeWebRTC(meetingData)
+          // Initialize WebRTC
+          await initializeWebRTC(meetingData.result)
 
-        // Fetch participants
-        const participantsData = await meetingService.getMeetingParticipants(meetingId)
-        setParticipants(participantsData)
-
-        if (participantsData.length > 0) {
-          setActiveParticipant(participantsData[0].id)
+          // Fetch participants
+          const participantsData = await meetingService.getMeetingParticipants(m)
+          if (participantsData.code === 1000) {
+            setParticipants(participantsData.result)
+            if (participantsData.result.length > 0) {
+              setActiveParticipant(participantsData.result[0].id)
+            }
+          }
+        } else {
+          throw new Error(meetingData.message || "Failed to load meeting")
         }
       } catch (err) {
         console.error("Error initializing meeting:", err)
@@ -88,7 +91,7 @@ const MeetingRoom = () => {
     return () => {
       webrtcService.leaveMeeting()
     }
-  }, [meetingId, currentUser.id])
+  }, [meetingCode, currentUser.id])
 
   // Initialize WebRTC with SockJS/STOMP
   const initializeWebRTC = async (meetingData) => {
@@ -102,7 +105,7 @@ const MeetingRoom = () => {
       }
 
       // Initialize WebRTC service
-      webrtcService.initialize(currentUser.id, meetingId)
+      webrtcService.initialize(currentUser.id, meetingCode)
 
       // Set up callbacks
       webrtcService.setCallbacks({
@@ -125,7 +128,7 @@ const MeetingRoom = () => {
   const handleParticipantJoined = async (data) => {
     try {
       // Fetch updated participants list
-      const participantsData = await meetingService.getMeetingParticipants(meetingId)
+      const participantsData = await meetingService.getMeetingParticipants(meetingCode)
       setParticipants(participantsData)
 
       // Add system message to chat
@@ -142,7 +145,7 @@ const MeetingRoom = () => {
   const handleParticipantLeft = async (data) => {
     try {
       // Fetch updated participants list
-      const participantsData = await meetingService.getMeetingParticipants(meetingId)
+      const participantsData = await meetingService.getMeetingParticipants(meetingCode)
       setParticipants(participantsData)
 
       // Add system message to chat
@@ -285,7 +288,7 @@ const MeetingRoom = () => {
       webrtcService.leaveMeeting()
 
       if (isHost) {
-        await meetingService.endMeeting(meetingId)
+        await meetingService.endMeeting(meetingCode)
       }
 
       navigate("/")
@@ -365,10 +368,10 @@ const MeetingRoom = () => {
   // Remove participant (host only)
   const removeParticipant = async (participantId) => {
     try {
-      await meetingService.removeParticipant(meetingId, participantId)
+      await meetingService.removeParticipant(meetingCode, participantId)
 
       // Update participants list
-      const participantsData = await meetingService.getMeetingParticipants(meetingId)
+      const participantsData = await meetingService.getMeetingParticipants(meetingCode)
       setParticipants(participantsData)
 
       // Add system message to chat
@@ -384,10 +387,10 @@ const MeetingRoom = () => {
   // Update participant permissions (host only)
   const updateParticipantPermissions = async (participantId, permissions) => {
     try {
-      await meetingService.updateParticipantPermissions(meetingId, participantId, permissions)
+      await meetingService.updateParticipantPermissions(meetingCode, participantId, permissions)
 
       // Update participants list
-      const participantsData = await meetingService.getMeetingParticipants(meetingId)
+      const participantsData = await meetingService.getMeetingParticipants(meetingCode)
       setParticipants(participantsData)
     } catch (err) {
       console.error("Error updating participant permissions:", err)
