@@ -41,6 +41,8 @@ public class MeetingUserService {
         MeetingUserEntity meetingUser = meetingUserMapper.toEntity(request);
         meetingUser.setMeeting(meeting);
         meetingUser.setUser(user);
+        meetingUser.setIsDeleted(false);
+        meetingUser.setDeletedAt(null);
         if (meetingUser.getInvitationStatus() == null) {
             meetingUser.setInvitationStatus(InvitationStatus.PENDING);
         }

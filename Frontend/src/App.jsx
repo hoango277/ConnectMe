@@ -78,7 +78,7 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/meeting/:meetingId"
+        path="/meeting/:meetingCode"
         element={
           <ProtectedRoute>
             <MeetingRoom />
