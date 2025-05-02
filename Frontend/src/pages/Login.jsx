@@ -32,8 +32,6 @@ const Login = () => {
       if (response.code === 0) {
         console.log(formData)
         console.log(response.result.user)
-        // The backend has already set the JWT cookie
-        // We can navigate directly since the cookie is set
         navigate("/")
       } else {
         setError(response.message || "Login failed. Please try again.")

@@ -23,11 +23,9 @@ public class MeetingSocketController {
      * Handle user joining a meeting
      */
     @MessageMapping("/meeting.join")
-    public void joinMeeting(@Payload JoinMeetingRequest request, MeetingUserRequest meetingUserRequest) {
-        // Process user joining the meeting
-        meetingUserService.addUser(meetingUserRequest, request.getMeetingCode(), request.getUserId());
+    public void joinMeeting(@Payload JoinMeetingRequest request) {
 
-        // Broadcast to all participants that a new user joined
+
         messagingTemplate.convertAndSend(
                 "/topic/meeting." + request.getMeetingCode() + ".user.joined",
                 new UserJoinedEvent(request.getUserId(), request.getMeetingCode())
