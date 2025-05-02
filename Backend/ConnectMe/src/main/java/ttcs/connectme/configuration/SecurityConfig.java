@@ -31,7 +31,7 @@ public class SecurityConfig {
 
     private final String[] PUBLIC_ENDPOINT_POST = {"/api/auth/**", "/api/users/**", "/api/auth/register",
             "/api/meeting/**"};
-    private final String[] PUBLIC_ENDPOINT_GET = {"/api/users/me", "/api/meeting/code/**"};
+    private final String[] PUBLIC_ENDPOINT_GET = {"/api/users/me", "/api/meetings/**"};
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {

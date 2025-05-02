@@ -1,6 +1,8 @@
 package ttcs.connectme.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ttcs.connectme.dto.request.MeetingRequest;
@@ -17,6 +19,7 @@ import ttcs.connectme.repository.UserRepository;
 import ttcs.connectme.utils.MeetingCodeGenerator;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -145,5 +148,20 @@ public class MeetingService {
                 .message("Meeting ended successfully")
                 .result(response)
                 .build();
+    }
+
+    public List<ApiResponse<MeetingResponse>> getAllMeetingByUserId(Long userId) {
+        UserEntity host = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        List<MeetingEntity> meetings = meetingRepository.findByHostIdAndIsDeletedFalse(userId);
+        return meetings.stream().map(meeting -> {
+            MeetingResponse response = meetingMapper.toResponse(meeting);
+            response.setHostId(host.getId());
+            return ApiResponse.<MeetingResponse>builder()
+                    .code(200)
+                    .message("Success")
+                    .result(response)
+                    .build();
+        }).toList();
     }
 }
