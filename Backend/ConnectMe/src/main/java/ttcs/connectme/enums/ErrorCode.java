@@ -13,16 +13,16 @@ import org.springframework.http.HttpStatusCode;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public enum ErrorCode {
-    UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error", HttpStatus.INTERNAL_SERVER_ERROR),
-    INVALID_KEY(1000, "Key invalid", HttpStatus.BAD_REQUEST),
-    USERNAME_EXISTED(1001, "Username existed", HttpStatus.BAD_REQUEST),
-    EMAIL_EXISTED(1002, "Email existed", HttpStatus.BAD_REQUEST),
-    INVALID_CREDENTIALS(1003, "Invalid Credentials", HttpStatus.UNAUTHORIZED),
-    USER_NOT_FOUND(1004, "User not found", HttpStatus.NOT_FOUND),
-    INCORRECT_PASSWORD(1005, "Incorrect current password", HttpStatus.BAD_REQUEST),
-    UNAUTHORIZED(1015, "You do not have permission", HttpStatus.FORBIDDEN);
+    UNCATEGORIZED_EXCEPTION("Uncategorized error", HttpStatus.INTERNAL_SERVER_ERROR),
+    INVALID_KEY("Key invalid", HttpStatus.BAD_REQUEST),
+    USERNAME_EXISTED("Username existed", HttpStatus.BAD_REQUEST),
+    EMAIL_EXISTED("Email existed", HttpStatus.BAD_REQUEST),
+    INVALID_CREDENTIALS("Invalid Credentials", HttpStatus.UNAUTHORIZED),
+    USER_NOT_FOUND("User not found", HttpStatus.NOT_FOUND),
+    INCORRECT_PASSWORD("Incorrect current password", HttpStatus.BAD_REQUEST),
+    UNAUTHENTICATED("Unauthenticated", HttpStatus.UNAUTHORIZED),
+    UNAUTHORIZED("You do not have permission", HttpStatus.FORBIDDEN);
 
-    int code;
     String message;
     HttpStatusCode statusCode;
 }
