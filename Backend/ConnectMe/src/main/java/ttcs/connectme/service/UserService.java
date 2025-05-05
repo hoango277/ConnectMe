@@ -33,10 +33,10 @@ public class UserService {
         String username = request.getUsername();
         String email = request.getEmail();
 
-        if (username != null && !username.equals(user.getUsername()) && userRepository.existsByUsername(username))
+        if (username != null && !username.equals(user.getUsername()) && userRepository.existsByUsernameAndIsDeletedFalse(username))
             throw new AppException(ErrorCode.USERNAME_EXISTED);
 
-        if (email != null && !email.equals(user.getEmail()) && userRepository.existsByEmail(email))
+        if (email != null && !email.equals(user.getEmail()) && userRepository.existsByEmailAndIsDeletedFalse(email))
             throw new AppException(ErrorCode.EMAIL_EXISTED);
 
         userMapper.update(request, user);
