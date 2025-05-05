@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatusCode;
 public enum ErrorCode {
     UNCATEGORIZED_EXCEPTION("Uncategorized error", HttpStatus.INTERNAL_SERVER_ERROR),
     INVALID_KEY("Key invalid", HttpStatus.BAD_REQUEST),
+    UNAUTHENTICATED("Unauthenticated", HttpStatus.UNAUTHORIZED),
     UNAUTHORIZED("You do not have permission", HttpStatus.FORBIDDEN),
     MEETING_NOT_FOUND("Meeting not found", HttpStatus.NOT_FOUND),
     USER_NOT_FOUND("User not found", HttpStatus.NOT_FOUND),
@@ -24,17 +25,7 @@ public enum ErrorCode {
     EMAIL_EXISTED("Email existed", HttpStatus.BAD_REQUEST),
     INVALID_CREDENTIALS("Invalid Credentials", HttpStatus.UNAUTHORIZED),
     INCORRECT_PASSWORD("Incorrect current password", HttpStatus.BAD_REQUEST);
-    UNCATEGORIZED_EXCEPTION("Uncategorized error", HttpStatus.INTERNAL_SERVER_ERROR),
-    INVALID_KEY("Key invalid", HttpStatus.BAD_REQUEST),
-    USERNAME_EXISTED("Username existed", HttpStatus.BAD_REQUEST),
-    EMAIL_EXISTED("Email existed", HttpStatus.BAD_REQUEST),
-    INVALID_CREDENTIALS("Invalid Credentials", HttpStatus.UNAUTHORIZED),
-    USER_NOT_FOUND("User not found", HttpStatus.NOT_FOUND),
-    INCORRECT_PASSWORD("Incorrect current password", HttpStatus.BAD_REQUEST),
-    UNAUTHENTICATED("Unauthenticated", HttpStatus.UNAUTHORIZED),
-    UNAUTHORIZED("You do not have permission", HttpStatus.FORBIDDEN);
 
-    int code;
     String message;
     HttpStatusCode statusCode;
 }

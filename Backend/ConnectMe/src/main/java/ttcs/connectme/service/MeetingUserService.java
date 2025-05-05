@@ -29,28 +29,53 @@ public class MeetingUserService {
     MeetingRepository meetingRepository;
     UserRepository userRepository;
 
-    public MeetingUserResponse addUser (MeetingUserRequest request, String meetingCode, Long userId) {
+    public MeetingUserResponse addUser(MeetingUserRequest request, String meetingCode, Long userId) {
+        // Kiểm tra dữ liệu đầu vào
+        if (meetingCode == null || meetingCode.trim().isEmpty()) {
+            throw new AppException(ErrorCode.MEETING_NOT_FOUND);
+        }
+
+        if (userId == null) {
+            throw new AppException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        // Tạo request mặc định nếu null
+        if (request == null) {
+            request = new MeetingUserRequest();
+            request.setInvitationStatus(InvitationStatus.ACCEPTED);
+        }
+
+        // Kiểm tra người dùng đã trong cuộc họp chưa
         if (meetingUserRepository.existsByMeetingMeetingCodeAndUserIdAndIsDeletedFalse(meetingCode, userId)) {
             throw new AppException(ErrorCode.USER_ALREADY_IN_MEETING);
         }
+
+        // Tìm cuộc họp
         MeetingEntity meeting = meetingRepository.findByMeetingCodeAndIsDeletedFalse(meetingCode)
                 .orElseThrow(() -> new AppException(ErrorCode.MEETING_NOT_FOUND));
+
+        // Tìm người dùng
         UserEntity user = userRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        MeetingUserEntity meetingUser = meetingUserMapper.toEntity(request);
-        meetingUser.setMeeting(meeting);
-        meetingUser.setUser(user);
-        meetingUser.setIsDeleted(false);
-        meetingUser.setDeletedAt(null);
-        if (meetingUser.getInvitationStatus() == null) {
-            meetingUser.setInvitationStatus(InvitationStatus.PENDING);
-        }
+        try {
+            MeetingUserEntity meetingUser = meetingUserMapper.toEntity(request);
+            meetingUser.setMeeting(meeting);
+            meetingUser.setUser(user);
+            meetingUser.setIsDeleted(false);
+            meetingUser.setDeletedAt(null);
+            if (meetingUser.getInvitationStatus() == null) {
+                meetingUser.setInvitationStatus(InvitationStatus.PENDING);
+            }
 
-        return meetingUserMapper.toResponse(meetingUserRepository.save(meetingUser));
+            MeetingUserEntity savedEntity = meetingUserRepository.save(meetingUser);
+            return meetingUserMapper.toResponse(savedEntity);
+        } catch (Exception e) {
+            throw e;
+        }
     }
 
-    public MeetingUserResponse updateById (Long id, MeetingUserRequest request) {
+    public MeetingUserResponse updateById(Long id, MeetingUserRequest request) {
         MeetingUserEntity meetingUser = meetingUserRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new AppException(ErrorCode.MEETING_USER_NOT_FOUND));
         meetingUserMapper.update(meetingUser, request);
@@ -58,8 +83,9 @@ public class MeetingUserService {
         return meetingUserMapper.toResponse(meetingUserRepository.save(meetingUser));
     }
 
-    public MeetingUserResponse updateByMeetingIdAndUserId (String meetingCode, Long userId, MeetingUserRequest request) {
-        MeetingUserEntity meetingUser = meetingUserRepository.findByMeetingMeetingCodeAndUserIdAndIsDeletedFalse(meetingCode, userId)
+    public MeetingUserResponse updateByMeetingIdAndUserId(String meetingCode, Long userId, MeetingUserRequest request) {
+        MeetingUserEntity meetingUser = meetingUserRepository
+                .findByMeetingMeetingCodeAndUserIdAndIsDeletedFalse(meetingCode, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.MEETING_USER_NOT_FOUND));
 
         meetingUserMapper.update(meetingUser, request);
@@ -76,8 +102,9 @@ public class MeetingUserService {
         return meetingUserMapper.toResponse(meetingUserRepository.save(meetingUser));
     }
 
-    public void deleteByMeetingIdAndUserId (String meetingCode, Long userId) {
-        MeetingUserEntity meetingUser = meetingUserRepository.findByMeetingMeetingCodeAndUserIdAndIsDeletedFalse(meetingCode, userId)
+    public void deleteByMeetingIdAndUserId(String meetingCode, Long userId) {
+        MeetingUserEntity meetingUser = meetingUserRepository
+                .findByMeetingMeetingCodeAndUserIdAndIsDeletedFalse(meetingCode, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.MEETING_USER_NOT_FOUND));
 
         meetingUser.setIsDeleted(true);
@@ -87,7 +114,7 @@ public class MeetingUserService {
         meetingUserRepository.save(meetingUser);
     }
 
-    public List<MeetingUserResponse> getAllByMeetingId (String meetingCode) {
+    public List<MeetingUserResponse> getAllByMeetingId(String meetingCode) {
         return meetingUserRepository.getAllByMeetingMeetingCodeAndIsDeletedFalse(meetingCode)
                 .stream().map(meetingUserMapper::toResponse).toList();
     }

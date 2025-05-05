@@ -7,6 +7,10 @@ import ttcs.connectme.dto.request.MeetingUserRequest;
 import ttcs.connectme.dto.response.ApiResponse;
 import ttcs.connectme.dto.response.MeetingResponse;
 import ttcs.connectme.dto.response.MeetingUserResponse;
+import ttcs.connectme.entity.MeetingEntity;
+import ttcs.connectme.enums.ErrorCode;
+import ttcs.connectme.exception.AppException;
+import ttcs.connectme.repository.MeetingRepository;
 import ttcs.connectme.service.MeetingService;
 import ttcs.connectme.service.MeetingUserService;
 
@@ -19,6 +23,7 @@ public class MeetingController {
 
     private final MeetingService meetingService;
     private final MeetingUserService meetingUserService;
+    private final MeetingRepository meetingRepository;
 
     @PostMapping("/meetings")
     public ApiResponse<MeetingResponse> createMeeting(@RequestBody MeetingRequest meetingRequest) {
@@ -30,14 +35,15 @@ public class MeetingController {
         return meetingService.getMeetingByCode(meetingCode);
     }
 
-    @PostMapping("/meetings/{id}/start")
-    public ApiResponse<MeetingResponse> startMeeting(@PathVariable Long id) {
-        return meetingService.startMeeting(id);
+
+    @PostMapping("/meetings/code/{meetingCode}/start")
+    public ApiResponse<MeetingResponse> startMeetingByCode(@PathVariable String meetingCode) {
+        return meetingService.startMeetingByCode(meetingCode);
     }
 
-    @PostMapping("/meetings/{id}/end")
-    public ApiResponse<MeetingResponse> endMeeting(@PathVariable Long id) {
-        return meetingService.endMeeting(id);
+    @PostMapping("/meetings/code/{meetingCode}/end")
+    public ApiResponse<MeetingResponse> endMeetingByCode(@PathVariable String meetingCode) {
+        return meetingService.endMeetingByCode(meetingCode);
     }
 
     @GetMapping("/meetings/user/{userId}")
@@ -51,13 +57,25 @@ public class MeetingController {
             @PathVariable Long userId,
             @RequestBody(required = false) MeetingUserRequest request) {
 
-        MeetingUserResponse result = meetingUserService.addUser(request, meetingCode, userId);
+        try {
+            MeetingUserResponse result = meetingUserService.addUser(request, meetingCode, userId);
 
-        return ApiResponse.<MeetingUserResponse>builder()
-                .code(200)
-                .message("Successfully joined the meeting")
-                .result(result)
-                .build();
+            return ApiResponse.<MeetingUserResponse>builder()
+                    .code(200)
+                    .message("Successfully joined the meeting")
+                    .result(result)
+                    .build();
+        } catch (AppException e) {
+            return ApiResponse.<MeetingUserResponse>builder()
+                    .code(e.getErrorCode().getStatusCode().value())
+                    .message(e.getMessage())
+                    .build();
+        } catch (Exception e) {
+            return ApiResponse.<MeetingUserResponse>builder()
+                    .code(ErrorCode.UNCATEGORIZED_EXCEPTION.getStatusCode().value())
+                    .message("Lỗi khi tham gia cuộc họp: " + e.getMessage())
+                    .build();
+        }
     }
 
     @PostMapping("/meetings/{meetingCode}/leave/{userId}")
