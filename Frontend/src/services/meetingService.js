@@ -145,13 +145,11 @@ export const meetingService = {
         throw new Error("User not authenticated")
       }
 
-      // First get the meeting by code to get the ID
       const meetingResponse = await meetingService.getMeetingByCode(meetingCode)
       if (meetingResponse.code !== 200) {
         throw new Error(meetingResponse.message || "Meeting not found")
       }
 
-      // Add user to meeting via REST API
       const meetingUserRequest = {
         role: "PARTICIPANT",
         invitationStatus: "ACCEPTED",
@@ -181,7 +179,7 @@ export const meetingService = {
       } catch (error) {
         console.error("API error when joining meeting:", error);
         
-        // Trích xuất thông báo lỗi từ response nếu có
+
         const serverMessage = error.response?.data?.message;
         if (serverMessage) {
           throw new Error(serverMessage);
