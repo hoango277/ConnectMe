@@ -41,77 +41,114 @@ class WebRTCService {
 
   // Initialize WebRTC service with SockJS and STOMP
   initialize(userId, meetingCode) {
-    // If already initialized with the same parameters, don't reinitialize
+    // Nếu đã được khởi tạo với cùng thông số, không cần khởi tạo lại
     if (this.stompClient && this.stompClient.connected &&
         this.userId === userId && this.meetingCode === meetingCode) {
-      console.log("WebRTC service already initialized with the same parameters")
+      console.log("WebRTC service already initialized with the same parameters");
       return this.stompClient; // Return the existing client for chaining
     }
 
-    // If already initialized but with different parameters, disconnect first
-    if (this.stompClient && this.stompClient.connected) {
-      console.log("Disconnecting existing STOMP client before reinitializing")
-      this.stompClient.deactivate()
+    // Nếu đã được khởi tạo nhưng với thông số khác, ngắt kết nối trước
+    if (this.stompClient) {
+      console.log("Disconnecting existing STOMP client before reinitializing");
+      try {
+        // Đóng tất cả các peer connections hiện có
+        Object.keys(this.peerConnections).forEach(peerUserId => {
+          this.closePeerConnection(peerUserId);
+        });
+        
+        // Đảm bảo chỉ deactivate khi client đã kết nối
+        if (this.stompClient.connected) {
+          this.stompClient.deactivate();
+        }
+        // Đặt client về null để tránh xung đột
+        this.stompClient = null;
+      } catch (err) {
+        console.error("Error while disconnecting STOMP client:", err);
+        // Tiếp tục với một client mới ngay cả khi có lỗi
+        this.stompClient = null;
+      }
     }
 
-    this.userId = userId
-    this.meetingCode = meetingCode
-    // Only reset join status if we're connecting to a different meeting
+    // Đặt lại các giá trị
+    this.userId = userId;
+    this.meetingCode = meetingCode;
+    // Chỉ đặt lại trạng thái tham gia nếu đang kết nối đến một cuộc họp khác
     if (this.meetingCode !== meetingCode) {
-      this.hasJoinedMeeting = false
+      this.hasJoinedMeeting = false;
     }
+    
+    // Làm sạch tất cả kết nối và các đối tượng khác
+    this.peerConnections = {};
+    this.pendingCandidates = {};
+    this.remoteStreams = {};
 
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:8080/ws"
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:8080/ws";
+    
+    // Tạo socket mới với các tùy chọn đáng tin cậy hơn
     const socket = new SockJS(socketUrl, null, {
       transports: ["websocket", "xhr-streaming", "xhr-polling"],
       transportOptions: {
-        websocket:    { withCredentials: true },
+        websocket: { withCredentials: true },
         xhrStreaming: { withCredentials: true },
-        xhrPolling:   { withCredentials: true }
+        xhrPolling: { withCredentials: true }
       }
-    })
+    });
 
+    // Tạo client STOMP mới với cấu hình cải tiến
     this.stompClient = new Client({
       webSocketFactory: () => socket,
       debug: (str) => {
         if (import.meta.env.DEV) {
-          console.debug(str)
+          console.debug(str);
         }
       },
-      reconnectDelay: 5000,
+      reconnectDelay: 2000, // Thử kết nối lại nhanh hơn
       heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000
-    })
+      heartbeatOutgoing: 4000,
+      connectionTimeout: 10000 // Thời gian chờ kết nối dài hơn
+    });
 
+    // Xử lý sự kiện kết nối thành công
     this.stompClient.onConnect = (frame) => {
-      console.log("Connected to STOMP broker:", frame)
-      this.setupSubscriptions(userId, meetingCode)
-    }
+      console.log("Connected to STOMP broker:", frame);
+      // Thiết lập đăng ký và kết nối WebRTC
+      this.setupSubscriptions(userId, meetingCode);
+    };
 
+    // Xử lý lỗi STOMP
     this.stompClient.onStompError = (frame) => {
-      console.error("STOMP error:", frame)
+      console.error("STOMP error:", frame);
       if (this.callbacks.onError) {
-        this.callbacks.onError({ message: "Connection error", details: frame })
+        this.callbacks.onError({ 
+          message: "Lỗi kết nối đến máy chủ WebSocket", 
+          details: frame 
+        });
       }
-    }
+    };
 
+    // Xử lý ngắt kết nối
     this.stompClient.onDisconnect = () => {
-      console.log("Disconnected from STOMP broker")
+      console.log("Disconnected from STOMP broker");
 
-      // If we didn't intend to disconnect (e.g., due to network issues), try to reconnect
+      // Nếu không cố ý ngắt kết nối (ví dụ: do lỗi mạng), thử kết nối lại
       if (this.hasJoinedMeeting) {
         console.log("Unexpected disconnection. Attempting to reconnect...");
-        // Wait a moment before trying to reconnect
+        // Đợi một lúc trước khi thử kết nối lại
         setTimeout(() => {
           if (this.hasJoinedMeeting && (!this.stompClient || !this.stompClient.connected)) {
             console.log("Reconnecting to WebSocket server...");
+            // Tạo kết nối hoàn toàn mới thay vì tái sử dụng
+            this.stompClient = null;
             this.initialize(this.userId, this.meetingCode);
           }
         }, 2000);
       }
-    }
+    };
 
-    this.stompClient.activate()
+    // Kích hoạt kết nối và trả về client để có thể gọi theo chuỗi
+    this.stompClient.activate();
+    return this.stompClient;
   }
 
   // Set up STOMP subscriptions
@@ -234,71 +271,152 @@ class WebRTCService {
     try {
       console.log(`Creating peer connection for user ID: ${userId}`);
 
-      // Check if we already have a connection for this user
+      // Kiểm tra xem đã có kết nối cho người dùng này chưa
       if (this.peerConnections[userId]) {
-        console.log(`Peer connection already exists for user ${userId}, reusing it`);
-        return this.peerConnections[userId];
+        // Kiểm tra trạng thái kết nối hiện tại
+        const peerConnection = this.peerConnections[userId];
+        const connectionState = peerConnection.connectionState;
+        const iceConnectionState = peerConnection.iceConnectionState;
+
+        // Chỉ tái sử dụng kết nối nếu nó trong trạng thái tốt
+        if ((connectionState === 'connected' || connectionState === 'new' || connectionState === 'connecting') && 
+            (iceConnectionState === 'connected' || iceConnectionState === 'new' || iceConnectionState === 'checking')) {
+          console.log(`Peer connection already exists for user ${userId} and is in good state, reusing it`);
+          return this.peerConnections[userId];
+        } else {
+          console.log(`Peer connection exists for user ${userId} but is in bad state (${connectionState}/${iceConnectionState}), creating new one`);
+          // Đóng kết nối cũ trước khi tạo mới
+          this.closePeerConnection(userId);
+        }
       }
 
+      // Cấu hình các máy chủ ICE - bao gồm nhiều máy chủ hơn để tăng khả năng kết nối
       const configuration = {
         iceServers: [
           { urls: "stun:stun.l.google.com:19302" },
           { urls: "stun:stun1.l.google.com:19302" },
-          { urls: "stun:stun2.l.google.com:19302" }
+          { urls: "stun:stun2.l.google.com:19302" },
+          { urls: "stun:stun3.l.google.com:19302" },
+          { urls: "stun:stun4.l.google.com:19302" },
+          { urls: "stun:stun.stunprotocol.org:3478" }
         ],
-      }
+        iceTransportPolicy: "all",
+        iceCandidatePoolSize: 10,
+        bundlePolicy: "max-bundle"
+      };
 
-      const peerConnection = new RTCPeerConnection(configuration)
+      // Tạo kết nối mới
+      const peerConnection = new RTCPeerConnection(configuration);
       console.log(`New RTCPeerConnection created for user ${userId}`);
 
-      // Handle ICE candidates
+      // Xử lý ICE candidates
       peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
-          console.log(`ICE candidate generated for user ${userId}:`, event.candidate.candidate.substring(0, 50) + '...');
-          this.stompClient.publish({
-            destination: "/app/meeting.signal",
-            body: JSON.stringify({
-              type: "ice-candidate",
-              targetUserId: userId,
-              from: this.userId,
-              meetingCode: this.meetingCode,
-              payload: JSON.stringify(event.candidate)
-            })
-          })
+          console.log(`ICE candidate generated for user ${userId}:`, 
+            event.candidate.candidate ? event.candidate.candidate.substring(0, 30) + '...' : 'null candidate');
+          
+          // Kiểm tra xem STOMP client có sẵn và đã kết nối
+          if (this.stompClient && this.stompClient.connected) {
+            this.stompClient.publish({
+              destination: "/app/meeting.signal",
+              body: JSON.stringify({
+                type: "ice-candidate",
+                targetUserId: userId,
+                from: this.userId,
+                meetingCode: this.meetingCode,
+                payload: JSON.stringify(event.candidate)
+              })
+            });
+          } else {
+            console.warn(`STOMP client not connected, cannot send ICE candidate for user ${userId}`);
+            
+            // Lưu candidate để gửi sau
+            if (!this.pendingCandidates[userId]) {
+              this.pendingCandidates[userId] = [];
+            }
+            this.pendingCandidates[userId].push(event.candidate);
+          }
         } else {
           console.log(`ICE candidate gathering complete for user ${userId}`);
         }
-      }
+      };
 
-      // Log ICE connection state changes
+      // Theo dõi thay đổi trạng thái kết nối ICE
       peerConnection.oniceconnectionstatechange = () => {
         console.log(`ICE connection state changed for user ${userId}: ${peerConnection.iceConnectionState}`);
-      }
+        
+        // Thử kết nối lại nếu ICE kết nối thất bại
+        if (peerConnection.iceConnectionState === 'failed') {
+          console.log(`ICE connection failed for user ${userId}, attempting to restart ICE`);
+          // Thử khởi động lại ICE - hoạt động trên một số trình duyệt
+          try {
+            peerConnection.restartIce();
+          } catch (error) {
+            console.error(`Error restarting ICE for user ${userId}:`, error);
+            // Nếu restart không hoạt động, tạo lại kết nối
+            setTimeout(() => {
+              if (this.peerConnections[userId] === peerConnection) {
+                this.checkAndRestartConnection(userId);
+              }
+            }, 1000);
+          }
+        } else if (peerConnection.iceConnectionState === 'disconnected') {
+          console.log(`ICE connection disconnected for user ${userId}, will attempt to reconnect if it doesn't recover`);
+          // Đặt thời gian chờ để kiểm tra xem kết nối có tự phục hồi không
+          setTimeout(() => {
+            if (this.peerConnections[userId] === peerConnection && 
+                peerConnection.iceConnectionState === 'disconnected') {
+              console.log(`ICE connection still disconnected for user ${userId}, attempting to restart`);
+              this.checkAndRestartConnection(userId);
+            }
+          }, 5000);
+        }
+      };
 
-      // Handle remote tracks
+      // Theo dõi thay đổi trạng thái kết nối
+      peerConnection.onconnectionstatechange = () => {
+        console.log(`Connection state changed for user ${userId}: ${peerConnection.connectionState}`);
+        
+        if (peerConnection.connectionState === 'failed') {
+          console.log(`Connection failed for user ${userId}, will attempt to restart`);
+          // Đóng kết nối cũ và tạo mới
+          setTimeout(() => {
+            if (this.peerConnections[userId] === peerConnection) {
+              this.checkAndRestartConnection(userId);
+            }
+          }, 1000);
+        }
+      };
+
+      // Theo dõi thay đổi trạng thái signaling
+      peerConnection.onsignalingstatechange = () => {
+        console.log(`Signaling state changed for user ${userId}: ${peerConnection.signalingState}`);
+      };
+
+      // Xử lý remote tracks
       peerConnection.ontrack = (event) => {
         console.log(`Remote track received from user ${userId}:`,
                     event.track.kind,
                     event.streams ? `(streams: ${event.streams.length})` : '(no streams)');
 
-        // Log detailed information about the track
+        // Ghi log thông tin chi tiết về track
         console.log(`Track details - kind: ${event.track.kind}, enabled: ${event.track.enabled}, readyState: ${event.track.readyState}, muted: ${event.track.muted}`);
 
-        // Create a new stream if none is provided
+        // Tạo stream mới nếu không có
         let stream = null;
         if (event.streams && event.streams.length > 0) {
           stream = event.streams[0];
           console.log(`Using existing stream from event for user ${userId}`);
         } else {
-          // If no stream is provided, create a new one with this track
+          // Nếu không có stream, tạo mới
           console.log(`No stream provided in track event for user ${userId}, creating new stream`);
           stream = new MediaStream([event.track]);
         }
 
-        // Add data attributes to the stream for debugging and identification
+        // Thêm thuộc tính dữ liệu cho stream để gỡ lỗi và nhận dạng
         stream.userId = userId;
 
-        // Add a custom property to help identify this stream
+        // Thêm thuộc tính tùy chỉnh để giúp nhận dạng stream này
         Object.defineProperty(stream, 'remoteUserId', {
           value: userId,
           writable: false,
@@ -309,11 +427,11 @@ class WebRTCService {
                     `audio tracks: ${stream.getAudioTracks().length}`,
                     `video tracks: ${stream.getVideoTracks().length}`);
 
-        // Store the stream in our internal references for direct access
-        // This is critical for the MeetingRoom component to find the stream
+        // Lưu stream trong tham chiếu nội bộ để truy cập trực tiếp
+        // Quan trọng để component MeetingRoom tìm thấy stream
         this.storeRemoteStream(userId, stream);
 
-        // Store the stream in the global window object for debugging
+        // Lưu stream trong đối tượng window toàn cục để gỡ lỗi
         if (typeof window !== 'undefined') {
           if (!window.debugStreams) {
             window.debugStreams = {};
@@ -322,46 +440,40 @@ class WebRTCService {
         }
 
         if (this.callbacks.onRemoteStreamAdded) {
-          // Make sure we pass the correct user ID with the stream
+          // Đảm bảo truyền đúng user ID với stream
           console.log(`Calling onRemoteStreamAdded callback for user ${userId}`);
           this.callbacks.onRemoteStreamAdded(userId, stream);
         } else {
           console.warn(`No onRemoteStreamAdded callback registered for user ${userId}`);
         }
-      }
+      };
 
-      // Monitor connection state changes
-      peerConnection.onconnectionstatechange = () => {
-        if (peerConnection.connectionState === "disconnected" ||
-            peerConnection.connectionState === "failed") {
-          this.closePeerConnection(userId)
-        }
-      }
-
-      // Add local tracks to the peer connection
+      // Thêm local tracks vào peer connection
       if (this.localStream) {
         console.log(`Adding local tracks to peer connection for user ${userId} - audio tracks: ${this.localStream.getAudioTracks().length}, video tracks: ${this.localStream.getVideoTracks().length}`);
 
-        // Make sure we have tracks to add
+        // Đảm bảo có tracks để thêm
         const tracks = this.localStream.getTracks();
         if (tracks.length === 0) {
           console.warn(`No tracks found in local stream for user ${userId}, attempting to get user media`);
 
-          // Try to get user media if no tracks are available
-          navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-            .then(stream => {
-              console.log(`Got new user media with tracks: audio=${stream.getAudioTracks().length}, video=${stream.getVideoTracks().length}`);
-              this.localStream = stream;
+          // Thử lấy user media nếu không có tracks
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            console.log(`Got new user media with tracks: audio=${stream.getAudioTracks().length}, video=${stream.getVideoTracks().length}`);
+            this.localStream = stream;
 
-              // Add the new tracks to the peer connection
-              stream.getTracks().forEach(track => {
-                console.log(`Adding ${track.kind} track to peer connection for user ${userId}`);
-                peerConnection.addTrack(track, stream);
-              });
-            })
-            .catch(err => console.error("Failed to get user media:", err));
+            // Thêm tracks mới vào peer connection
+            stream.getTracks().forEach(track => {
+              console.log(`Adding ${track.kind} track to peer connection for user ${userId}`);
+              peerConnection.addTrack(track, stream);
+            });
+          } catch (err) {
+            console.error("Failed to get user media:", err);
+            // Tiếp tục mà không có tracks - kết nối vẫn có thể được thiết lập cho audio/video một chiều
+          }
         } else {
-          // Add existing tracks
+          // Thêm tracks hiện có
           tracks.forEach((track) => {
             console.log(`Adding ${track.kind} track to peer connection for user ${userId}`);
             peerConnection.addTrack(track, this.localStream);
@@ -370,213 +482,73 @@ class WebRTCService {
       } else {
         console.warn(`No local stream available for user ${userId}, attempting to get user media`);
 
-        // Try to get user media if no local stream is available
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-          .then(stream => {
-            console.log(`Got new user media with tracks: audio=${stream.getAudioTracks().length}, video=${stream.getVideoTracks().length}`);
-            this.localStream = stream;
+        // Thử lấy user media nếu không có local stream
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          console.log(`Got new user media with tracks: audio=${stream.getAudioTracks().length}, video=${stream.getVideoTracks().length}`);
+          this.localStream = stream;
 
-            // Add the new tracks to the peer connection
-            stream.getTracks().forEach(track => {
-              console.log(`Adding ${track.kind} track to peer connection for user ${userId}`);
-              peerConnection.addTrack(track, stream);
-            });
-          })
-          .catch(err => console.error("Failed to get user media:", err));
+          // Thêm tracks mới vào peer connection
+          stream.getTracks().forEach(track => {
+            console.log(`Adding ${track.kind} track to peer connection for user ${userId}`);
+            peerConnection.addTrack(track, stream);
+          });
+        } catch (err) {
+          console.error("Failed to get user media:", err);
+          // Tiếp tục mà không có tracks - kết nối vẫn có thể được thiết lập cho audio/video một chiều
+        }
       }
 
-      this.peerConnections[userId] = peerConnection
-      return peerConnection
+      // Lưu kết nối mới
+      this.peerConnections[userId] = peerConnection;
+      return peerConnection;
     } catch (error) {
-      console.error("Error creating peer connection:", error)
+      console.error("Error creating peer connection:", error);
       if (this.callbacks.onError) {
-        this.callbacks.onError(error)
+        this.callbacks.onError({
+          message: "Lỗi khi tạo kết nối P2P với người dùng khác",
+          originalError: error
+        });
       }
-      throw error
-    }
-  }
-
-  // Create an offer for a peer connection
-  async createOffer(userId) {
-    try {
-      const peerConnection = this.peerConnections[userId]
-      const offer = await peerConnection.createOffer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: true
-      })
-      await peerConnection.setLocalDescription(offer)
-      return offer
-    } catch (error) {
-      console.error("Error creating offer:", error)
-      if (this.callbacks.onError) {
-        this.callbacks.onError(error)
-      }
-      throw error
+      throw error;
     }
   }
 
   // Create an answer for a peer connection
   async createAnswer(userId, offer) {
     try {
-      console.log("Creating answer for user:", userId)
+      console.log("Tạo answer cho người dùng:", userId);
 
-      // Make sure we have a peer connection for this user
+      // Đảm bảo có peer connection cho người dùng này
       if (!this.peerConnections[userId]) {
-        console.log("Creating peer connection for user before answering:", userId)
-        await this.createPeerConnection(userId)
+        console.log("Tạo peer connection cho người dùng trước khi trả lời:", userId);
+        await this.createPeerConnection(userId);
       }
 
-      const peerConnection = this.peerConnections[userId]
+      const peerConnection = this.peerConnections[userId];
 
-      // Set the remote description first
-      console.log("Setting remote description from offer")
+      // Đặt remote description trước
+      console.log("Đặt remote description từ offer");
       try {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer))
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
 
-        // Process any pending ICE candidates
-        await this.processPendingCandidates(userId)
+        // Xử lý các ICE candidate đang chờ xử lý
+        await this.processPendingCandidates(userId);
 
-        // Then create the answer
-        console.log("Creating answer")
+        // Sau đó tạo answer
+        console.log("Đang tạo answer");
         const answer = await peerConnection.createAnswer({
           offerToReceiveAudio: true,
           offerToReceiveVideo: true
-        })
+        });
 
-        // Set the local description
-        console.log("Setting local description from answer")
-        await peerConnection.setLocalDescription(answer)
+        // Đặt local description
+        console.log("Đặt local description từ answer");
+        await peerConnection.setLocalDescription(answer);
 
-        return answer
-      } catch (err) {
-        console.error("Error setting remote description or creating answer:", err)
-
-        // If there's an error, recreate the peer connection and try again
-        console.log("Recreating peer connection after error")
-        this.closePeerConnection(userId)
-        await this.createPeerConnection(userId)
-
-        const newPeerConnection = this.peerConnections[userId]
-
-        // Try again with the new peer connection
-        console.log("Retrying with new peer connection")
-        await newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer))
-
-        // Process any pending ICE candidates
-        await this.processPendingCandidates(userId)
-
-        // Create the answer
-        const answer = await newPeerConnection.createAnswer({
-          offerToReceiveAudio: true,
-          offerToReceiveVideo: true
-        })
-
-        // Set the local description
-        await newPeerConnection.setLocalDescription(answer)
-
-        return answer
-      }
-    } catch (error) {
-      console.error("Error creating answer:", error)
-      if (this.callbacks.onError) {
-        this.callbacks.onError(error)
-      }
-      throw error
-    }
-  }
-
-  // Handle an answer for a peer connection
-  async handleAnswer(userId, answer) {
-    try {
-      console.log("Handling answer from user:", userId)
-
-      const peerConnection = this.peerConnections[userId]
-      if (peerConnection) {
-        console.log("Setting remote description from answer")
-        try {
-          // Check if the connection is in the right state to receive an answer
-          // An answer can only be set if we've already sent an offer (signalingState should be 'have-local-offer')
-          if (peerConnection.signalingState === 'have-local-offer') {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
-            console.log("Remote description set successfully")
-
-            // Process any pending ICE candidates
-            await this.processPendingCandidates(userId)
-          } else {
-            console.warn(`Cannot set remote description: peer connection is in ${peerConnection.signalingState} state, expected 'have-local-offer'`)
-
-            // If we're in stable state, it means we might have already processed this answer
-            // or we haven't sent an offer yet
-            if (peerConnection.signalingState === 'stable') {
-              console.log("Connection is already in stable state, ignoring answer")
-            } else {
-              // For other states, we might need to recreate the connection
-              console.log(`Connection is in unexpected state: ${peerConnection.signalingState}, recreating connection`)
-
-              // Close the existing connection
-              this.closePeerConnection(userId)
-
-              // Create a new connection
-              await this.createPeerConnection(userId)
-
-              // If we have a local stream, create and send a new offer
-              if (this.localStream) {
-                const offer = await this.createOffer(userId)
-                this.stompClient.publish({
-                  destination: "/app/meeting.signal",
-                  body: JSON.stringify({
-                    type: "offer",
-                    targetUserId: userId,
-                    from: this.userId,
-                    meetingCode: this.meetingCode,
-                    payload: JSON.stringify(offer)
-                  })
-                })
-              }
-            }
-          }
-        } catch (err) {
-          console.error("Error setting remote description:", err)
-
-          // If setting the remote description fails, check the connection state
-          if (peerConnection.connectionState === 'failed' ||
-              peerConnection.connectionState === 'disconnected' ||
-              peerConnection.connectionState === 'closed') {
-
-            console.log(`Connection state is ${peerConnection.connectionState}, recreating peer connection`)
-
-            // Close the existing connection
-            this.closePeerConnection(userId)
-
-            // Create a new connection
-            await this.createPeerConnection(userId)
-
-            // If we have a local stream, create and send a new offer
-            if (this.localStream) {
-              const offer = await this.createOffer(userId)
-              this.stompClient.publish({
-                destination: "/app/meeting.signal",
-                body: JSON.stringify({
-                  type: "offer",
-                  targetUserId: userId,
-                  from: this.userId,
-                  meetingCode: this.meetingCode,
-                  payload: JSON.stringify(offer)
-                })
-              })
-            }
-          }
-        }
-      } else {
-        console.warn("No peer connection found for user:", userId)
-
-        // Create a new peer connection if one doesn't exist
-        console.log(`Creating new peer connection for user ${userId}`)
-        await this.createPeerConnection(userId)
-
-        // If we have a local stream, create and send a new offer
-        if (this.localStream) {
-          const offer = await this.createOffer(userId)
+        // Nếu chúng ta có local stream, tạo và gửi offer mới
+        if (this.localStream && this.stompClient && this.stompClient.connected) {
+          const offer = await this.createOffer(userId);
           this.stompClient.publish({
             destination: "/app/meeting.signal",
             body: JSON.stringify({
@@ -586,13 +558,202 @@ class WebRTCService {
               meetingCode: this.meetingCode,
               payload: JSON.stringify(offer)
             })
-          })
+          });
+        }
+
+        return answer;
+      } catch (err) {
+        console.error("Lỗi khi đặt remote description hoặc tạo answer:", err);
+
+        // Nếu có lỗi, tạo lại peer connection và thử lại
+        console.log("Tạo lại peer connection sau lỗi");
+        this.closePeerConnection(userId);
+        
+        // Đợi một chút trước khi tạo kết nối mới
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        await this.createPeerConnection(userId);
+
+        const newPeerConnection = this.peerConnections[userId];
+
+        // Thử lại với peer connection mới
+        console.log("Thử lại với peer connection mới");
+        await newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+
+        // Xử lý các ICE candidate đang chờ xử lý
+        await this.processPendingCandidates(userId);
+
+        // Tạo answer
+        const answer = await newPeerConnection.createAnswer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: true
+        });
+
+        // Đặt local description
+        await newPeerConnection.setLocalDescription(answer);
+
+        // Nếu chúng ta có local stream, tạo và gửi offer mới
+        if (this.localStream && this.stompClient && this.stompClient.connected) {
+          try {
+            const offer = await this.createOffer(userId);
+            this.stompClient.publish({
+              destination: "/app/meeting.signal",
+              body: JSON.stringify({
+                type: "offer",
+                targetUserId: userId,
+                from: this.userId,
+                meetingCode: this.meetingCode,
+                payload: JSON.stringify(offer)
+              })
+            });
+          } catch (offerErr) {
+            console.error(`Lỗi tạo offer mới sau khi tạo lại kết nối: ${offerErr}`);
+          }
+        }
+
+        return answer;
+      }
+    } catch (error) {
+      console.error("Lỗi khi tạo answer:", error);
+      if (this.callbacks.onError) {
+        this.callbacks.onError({
+          message: `Lỗi khi tạo câu trả lời cho kết nối: ${error.message}`,
+          originalError: error
+        });
+      }
+      throw error;
+    }
+  }
+
+  // Handle an answer for a peer connection
+  async handleAnswer(userId, answer) {
+    try {
+      console.log("Handling answer from user:", userId);
+
+      const peerConnection = this.peerConnections[userId];
+      if (peerConnection) {
+        console.log("Setting remote description from answer");
+        try {
+          // Kiểm tra xem kết nối đang ở trạng thái phù hợp để nhận answer
+          // Answer chỉ có thể được đặt nếu chúng ta đã gửi offer (signalingState nên là 'have-local-offer')
+          if (peerConnection.signalingState === 'have-local-offer') {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            console.log("Remote description set successfully");
+
+            // Xử lý các ICE candidate đang chờ xử lý
+            await this.processPendingCandidates(userId);
+          } else {
+            console.warn(`Không thể đặt remote description: peer connection đang ở trạng thái ${peerConnection.signalingState}, cần 'have-local-offer'`);
+
+            // Nếu chúng ta đang ở trạng thái ổn định, có thể chúng ta đã xử lý answer này
+            // hoặc chúng ta chưa gửi offer
+            if (peerConnection.signalingState === 'stable') {
+              console.log("Kết nối đã ở trạng thái ổn định, bỏ qua answer");
+            } else {
+              // Đối với các trạng thái khác, chúng ta có thể cần tạo lại kết nối
+              console.log(`Kết nối đang ở trạng thái không mong đợi: ${peerConnection.signalingState}, tạo lại kết nối`);
+
+              // Đóng kết nối hiện tại
+              this.closePeerConnection(userId);
+              
+              // Đợi một chút trước khi tạo kết nối mới
+              await new Promise(resolve => setTimeout(resolve, 500));
+
+              // Tạo kết nối mới
+              await this.createPeerConnection(userId);
+
+              // Nếu chúng ta có local stream, tạo và gửi offer mới
+              if (this.localStream && this.stompClient && this.stompClient.connected) {
+                try {
+                  const offer = await this.createOffer(userId);
+                  this.stompClient.publish({
+                    destination: "/app/meeting.signal",
+                    body: JSON.stringify({
+                      type: "offer",
+                      targetUserId: userId,
+                      from: this.userId,
+                      meetingCode: this.meetingCode,
+                      payload: JSON.stringify(offer)
+                    })
+                  });
+                } catch (offerErr) {
+                  console.error(`Lỗi tạo offer mới sau khi tạo lại kết nối: ${offerErr}`);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Lỗi khi đặt remote description:", err);
+
+          // Nếu đặt remote description thất bại, kiểm tra trạng thái kết nối
+          if (peerConnection.connectionState === 'failed' ||
+              peerConnection.connectionState === 'disconnected' ||
+              peerConnection.connectionState === 'closed') {
+
+            console.log(`Trạng thái kết nối là ${peerConnection.connectionState}, tạo lại peer connection`);
+
+            // Đóng kết nối hiện tại
+            this.closePeerConnection(userId);
+            
+            // Đợi một chút trước khi tạo kết nối mới
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Tạo kết nối mới
+            await this.createPeerConnection(userId);
+
+            // Nếu chúng ta có local stream, tạo và gửi offer mới
+            if (this.localStream && this.stompClient && this.stompClient.connected) {
+              try {
+                const offer = await this.createOffer(userId);
+                this.stompClient.publish({
+                  destination: "/app/meeting.signal",
+                  body: JSON.stringify({
+                    type: "offer",
+                    targetUserId: userId,
+                    from: this.userId,
+                    meetingCode: this.meetingCode,
+                    payload: JSON.stringify(offer)
+                  })
+                });
+              } catch (offerErr) {
+                console.error(`Lỗi tạo offer mới sau khi tạo lại kết nối: ${offerErr}`);
+              }
+            }
+          }
+        }
+      } else {
+        console.warn("Không tìm thấy peer connection cho người dùng:", userId);
+
+        // Tạo kết nối mới nếu không tồn tại
+        console.log(`Tạo kết nối peer mới cho người dùng ${userId}`);
+        await this.createPeerConnection(userId);
+
+        // Nếu chúng ta có local stream, tạo và gửi offer mới
+        if (this.localStream && this.stompClient && this.stompClient.connected) {
+          try {
+            const offer = await this.createOffer(userId);
+            this.stompClient.publish({
+              destination: "/app/meeting.signal",
+              body: JSON.stringify({
+                type: "offer",
+                targetUserId: userId,
+                from: this.userId,
+                meetingCode: this.meetingCode,
+                payload: JSON.stringify(offer)
+              })
+            });
+          } catch (offerErr) {
+            console.error(`Lỗi tạo offer mới sau khi tạo lại kết nối: ${offerErr}`);
+          }
         }
       }
     } catch (error) {
-      console.error("Error handling answer:", error, "for user:", userId)
+      console.error("Lỗi xử lý answer:", error, "cho người dùng:", userId);
       if (this.callbacks.onError) {
-        this.callbacks.onError(error)
+        this.callbacks.onError({
+          message: `Lỗi xử lý answer từ người dùng khác: ${error.message}`,
+          originalError: error
+        });
       }
     }
   }
@@ -600,39 +761,39 @@ class WebRTCService {
   // Add an ICE candidate to a peer connection
   async addIceCandidate(userId, candidate) {
     try {
-      console.log(`Adding ICE candidate for user ${userId}:`, candidate.candidate ? candidate.candidate.substring(0, 50) + '...' : 'null candidate');
+      console.log(`Thêm ICE candidate cho người dùng ${userId}:`, candidate.candidate ? candidate.candidate.substring(0, 50) + '...' : 'null candidate');
 
-      // Create peer connection if it doesn't exist
+      // Tạo peer connection nếu chưa tồn tại
       if (!this.peerConnections[userId]) {
-        console.log(`No peer connection found for user ${userId}, creating one`);
+        console.log(`Không tìm thấy peer connection cho người dùng ${userId}, tạo mới`);
         await this.createPeerConnection(userId);
       }
 
       const peerConnection = this.peerConnections[userId];
 
-      // Check if the remote description is set before adding ICE candidates
+      // Kiểm tra xem remote description đã được đặt chưa trước khi thêm ICE candidates
       if (peerConnection.remoteDescription) {
-        console.log(`Remote description is set for user ${userId}, adding ICE candidate immediately`);
+        console.log(`Remote description đã được đặt cho người dùng ${userId}, thêm ICE candidate ngay lập tức`);
         try {
           await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-          console.log(`ICE candidate added successfully for user ${userId}`);
+          console.log(`ICE candidate được thêm thành công cho người dùng ${userId}`);
         } catch (err) {
-          console.error(`Failed to add ICE candidate for user ${userId}:`, err);
+          console.error(`Thất bại khi thêm ICE candidate cho người dùng ${userId}:`, err);
 
-          // If adding the candidate fails, check the connection state
+          // Kiểm tra trạng thái kết nối nếu thêm candidate thất bại
           if (peerConnection.connectionState === 'failed' ||
               peerConnection.connectionState === 'disconnected' ||
               peerConnection.connectionState === 'closed') {
 
-            console.log(`Connection state is ${peerConnection.connectionState}, recreating peer connection`);
+            console.log(`Trạng thái kết nối là ${peerConnection.connectionState}, tạo lại peer connection`);
 
-            // Close the existing connection
+            // Đóng kết nối hiện tại
             this.closePeerConnection(userId);
 
-            // Create a new connection
+            // Tạo kết nối mới
             await this.createPeerConnection(userId);
 
-            // Store the candidate for later processing
+            // Lưu candidate để xử lý sau
             if (!this.pendingCandidates) {
               this.pendingCandidates = {};
             }
@@ -641,25 +802,29 @@ class WebRTCService {
             }
             this.pendingCandidates[userId].push(candidate);
 
-            // If we have a local stream, create and send a new offer
-            if (this.localStream) {
-              const offer = await this.createOffer(userId);
-              this.stompClient.publish({
-                destination: "/app/meeting.signal",
-                body: JSON.stringify({
-                  type: "offer",
-                  targetUserId: userId,
-                  from: this.userId,
-                  meetingCode: this.meetingCode,
-                  payload: JSON.stringify(offer)
-                })
-              });
+            // Nếu chúng ta có local stream, tạo và gửi offer mới
+            if (this.localStream && this.stompClient && this.stompClient.connected) {
+              try {
+                const offer = await this.createOffer(userId);
+                this.stompClient.publish({
+                  destination: "/app/meeting.signal",
+                  body: JSON.stringify({
+                    type: "offer",
+                    targetUserId: userId,
+                    from: this.userId,
+                    meetingCode: this.meetingCode,
+                    payload: JSON.stringify(offer)
+                  })
+                });
+              } catch (offerErr) {
+                console.error(`Lỗi tạo offer mới sau khi tạo lại kết nối: ${offerErr}`);
+              }
             }
           }
         }
       } else {
-        console.warn(`Cannot add ICE candidate for user ${userId}: remote description not set yet, storing for later`);
-        // Store the candidate to add later
+        console.warn(`Không thể thêm ICE candidate cho người dùng ${userId}: remote description chưa được đặt, lưu để xử lý sau`);
+        // Lưu candidate để thêm sau
         if (!this.pendingCandidates) {
           this.pendingCandidates = {};
         }
@@ -667,12 +832,15 @@ class WebRTCService {
           this.pendingCandidates[userId] = [];
         }
         this.pendingCandidates[userId].push(candidate);
-        console.log(`Stored pending ICE candidate for user ${userId}, total pending: ${this.pendingCandidates[userId].length}`);
+        console.log(`Đã lưu ICE candidate chờ xử lý cho người dùng ${userId}, tổng số chờ: ${this.pendingCandidates[userId].length}`);
       }
     } catch (error) {
-      console.error(`Error adding ICE candidate for user ${userId}:`, error);
+      console.error(`Lỗi khi thêm ICE candidate cho người dùng ${userId}:`, error);
       if (this.callbacks.onError) {
-        this.callbacks.onError(error);
+        this.callbacks.onError({
+          message: `Lỗi xử lý ICE candidate: ${error.message}`,
+          originalError: error
+        });
       }
     }
   }
@@ -734,14 +902,104 @@ class WebRTCService {
   // Get user media (camera and microphone)
   async getUserMedia(constraints = { video: true, audio: true }) {
     try {
-      this.localStream = await navigator.mediaDevices.getUserMedia(constraints)
-      return this.localStream
-    } catch (error) {
-      console.error("Error getting user media:", error)
-      if (this.callbacks.onError) {
-        this.callbacks.onError(error)
+      // Kiểm tra quyền trước khi yêu cầu stream
+      if (navigator.permissions && navigator.permissions.query) {
+        try {
+          // Kiểm tra quyền camera nếu constraints có video
+          if (constraints.video) {
+            const cameraPermission = await navigator.permissions.query({ name: 'camera' });
+            if (cameraPermission.state === 'denied') {
+              throw new Error('Camera permission denied by the browser. Please enable camera access in your browser settings.');
+            }
+          }
+          
+          // Kiểm tra quyền microphone nếu constraints có audio
+          if (constraints.audio) {
+            const micPermission = await navigator.permissions.query({ name: 'microphone' });
+            if (micPermission.state === 'denied') {
+              throw new Error('Microphone permission denied by the browser. Please enable microphone access in your browser settings.');
+            }
+          }
+        } catch (permError) {
+          console.warn("Unable to check permissions directly, will attempt to get media anyway:", permError);
+          // Tiếp tục thử getUserMedia ngay cả khi kiểm tra quyền thất bại
+        }
       }
-      throw error
+
+      // Thử với cả hai thiết bị trước
+      try {
+        this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        return this.localStream;
+      } catch (bothError) {
+        console.warn("Failed to get both audio and video:", bothError);
+        
+        // Nếu không thể truy cập cả hai, thử chỉ với audio nếu yêu cầu audio
+        if (constraints.audio) {
+          try {
+            console.log("Trying with audio only...");
+            this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            
+            if (this.callbacks.onError) {
+              this.callbacks.onError({
+                message: "Unable to access camera, but microphone is working. Video will be disabled.",
+                originalError: bothError
+              });
+            }
+            
+            return this.localStream;
+          } catch (audioError) {
+            console.error("Failed with audio only too:", audioError);
+          }
+        }
+        
+        // Nếu audio cũng thất bại hoặc không yêu cầu audio, thử chỉ với video nếu yêu cầu video
+        if (constraints.video) {
+          try {
+            console.log("Trying with video only...");
+            this.localStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+            
+            if (this.callbacks.onError) {
+              this.callbacks.onError({
+                message: "Unable to access microphone, but camera is working. Audio will be disabled.",
+                originalError: bothError
+              });
+            }
+            
+            return this.localStream;
+          } catch (videoError) {
+            console.error("Failed with video only too:", videoError);
+          }
+        }
+        
+        // Nếu tất cả đều thất bại, ném lỗi gốc
+        throw bothError;
+      }
+    } catch (error) {
+      console.error("Error getting user media:", error);
+      
+      // Chi tiết hơn về lỗi để người dùng biết phải làm gì
+      let errorMessage = "Không thể truy cập camera hoặc microphone.";
+      
+      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+        errorMessage = "Trình duyệt đã từ chối quyền truy cập camera hoặc microphone. Vui lòng cho phép truy cập trong cài đặt trình duyệt.";
+      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+        errorMessage = "Không tìm thấy camera hoặc microphone. Vui lòng kiểm tra xem thiết bị đã được kết nối chưa.";
+      } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+        errorMessage = "Camera hoặc microphone đang được sử dụng bởi ứng dụng khác. Vui lòng đóng các ứng dụng khác và thử lại.";
+      } else if (error.name === "OverconstrainedError" || error.name === "ConstraintNotSatisfiedError") {
+        errorMessage = "Không thể đáp ứng yêu cầu chất lượng camera/microphone. Vui lòng thử với cài đặt thấp hơn.";
+      } else if (error.name === "TypeError") {
+        errorMessage = "Các tham số không hợp lệ khi yêu cầu truy cập camera/microphone.";
+      }
+      
+      const enhancedError = new Error(errorMessage);
+      enhancedError.originalError = error;
+      
+      if (this.callbacks.onError) {
+        this.callbacks.onError(enhancedError);
+      }
+      
+      throw enhancedError;
     }
   }
 
@@ -1019,81 +1277,169 @@ class WebRTCService {
   // Ensure connection and send offer - reliable method to establish connection
   async ensureConnectionAndSendOffer(userId) {
     console.log(`Ensuring connection and sending offer to user ${userId}`);
-
-    try {
-      // Step 1: Make sure we have a peer connection
-      let peerConnection = this.peerConnections[userId];
-      let needToCreateOffer = true;
-
-      if (peerConnection) {
-        // Check connection state
-        const connectionState = peerConnection.connectionState;
-        const iceConnectionState = peerConnection.iceConnectionState;
-        const signalingState = peerConnection.signalingState;
-
-        console.log(`Existing connection states for user ${userId}: connection=${connectionState}, ice=${iceConnectionState}, signaling=${signalingState}`);
-
-        // If connection is in a bad state, recreate it
-        if (connectionState === 'failed' || connectionState === 'disconnected' || connectionState === 'closed' ||
-            iceConnectionState === 'failed' || iceConnectionState === 'disconnected') {
-          console.log(`Connection is in bad state for user ${userId}, recreating`);
-
-          // Close the existing connection
-          this.closePeerConnection(userId);
-
-          // Create a new connection
+    
+    // Thêm khóa để ngăn chặn các cuộc gọi đồng thời đến cùng một user
+    const connectionKey = `connection_${userId}`;
+    if (this[connectionKey]) {
+      console.log(`Connection already in progress for user ${userId}, waiting...`);
+      try {
+        await this[connectionKey];
+        console.log(`Previous connection attempt completed for user ${userId}`);
+      } catch (err) {
+        console.error(`Previous connection attempt failed for user ${userId}:`, err);
+      }
+    }
+    
+    // Tạo promise mới để theo dõi nỗ lực kết nối này
+    this[connectionKey] = (async () => {
+      try {
+        // Bước 1: Đảm bảo có peer connection
+        let peerConnection = this.peerConnections[userId];
+        let needToCreateOffer = true;
+        
+        if (peerConnection) {
+          // Kiểm tra trạng thái kết nối
+          const connectionState = peerConnection.connectionState;
+          const iceConnectionState = peerConnection.iceConnectionState;
+          const signalingState = peerConnection.signalingState;
+          
+          console.log(`Existing connection states for user ${userId}: connection=${connectionState}, ice=${iceConnectionState}, signaling=${signalingState}`);
+          
+          // Nếu kết nối trong trạng thái không tốt, tạo lại
+          if (connectionState === 'failed' || connectionState === 'disconnected' || connectionState === 'closed' ||
+              iceConnectionState === 'failed' || iceConnectionState === 'disconnected') {
+            console.log(`Connection is in bad state for user ${userId}, recreating`);
+            
+            // Đóng kết nối hiện có
+            this.closePeerConnection(userId);
+            
+            // Đợi một chút trước khi tạo kết nối mới để đảm bảo nguồn lực được giải phóng
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Tạo kết nối mới
+            peerConnection = await this.createPeerConnection(userId);
+          }
+          // Nếu đang trong quá trình kết nối, không tạo offer mới
+          else if (signalingState === 'have-local-offer') {
+            console.log(`Already have local offer for user ${userId}, checking if it's fresh`);
+            
+            // Thêm logic kiểm tra thời gian tạo offer
+            const offerTimestamp = peerConnection._offerTimestamp;
+            const currentTime = Date.now();
+            
+            if (offerTimestamp && (currentTime - offerTimestamp < 10000)) {
+              console.log(`Offer is fresh (less than 10s old), not creating new offer`);
+              needToCreateOffer = false;
+            } else {
+              console.log(`Offer is stale or missing timestamp, creating new offer`);
+              // Đặt trạng thái về stable nếu cần
+              try {
+                if (peerConnection.signalingState !== 'stable') {
+                  await peerConnection.setLocalDescription({type: 'rollback'});
+                }
+              } catch (err) {
+                // Một số trình duyệt không hỗ trợ rollback, trong trường hợp đó tạo lại kết nối
+                console.warn(`Rollback not supported, recreating peer connection`);
+                this.closePeerConnection(userId);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                peerConnection = await this.createPeerConnection(userId);
+              }
+            }
+          }
+        } else {
+          console.log(`No peer connection found for user ${userId}, creating new one`);
           peerConnection = await this.createPeerConnection(userId);
         }
-        // If we're already in the process of connecting, don't create a new offer
-        else if (signalingState === 'have-local-offer') {
-          console.log(`Already have local offer for user ${userId}, not creating new offer`);
-          needToCreateOffer = false;
+        
+        // Bước 2: Đảm bảo có local stream
+        if (!this.localStream || this.localStream.getTracks().length === 0) {
+          console.log(`No local stream or tracks for user ${userId}, getting user media`);
+          try {
+            this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            console.log(`Got user media with tracks: audio=${this.localStream.getAudioTracks().length}, video=${this.localStream.getVideoTracks().length}`);
+            
+            // Thêm tracks vào peer connection
+            const senders = peerConnection.getSenders();
+            this.localStream.getTracks().forEach(track => {
+              // Kiểm tra xem track đã được thêm chưa
+              const hasSender = senders.some(sender => sender.track && sender.track.kind === track.kind);
+              if (!hasSender) {
+                console.log(`Adding ${track.kind} track to peer connection for user ${userId}`);
+                peerConnection.addTrack(track, this.localStream);
+              } else {
+                console.log(`Track ${track.kind} already added for user ${userId}`);
+              }
+            });
+          } catch (err) {
+            console.error(`Failed to get user media for user ${userId}:`, err);
+            if (this.callbacks.onError) {
+              this.callbacks.onError({
+                message: "Không thể truy cập camera hoặc microphone khi kết nối với người dùng khác",
+                originalError: err
+              });
+            }
+          }
+        } else {
+          // Kiểm tra xem chúng ta đã thêm tracks vào kết nối chưa
+          const senders = peerConnection.getSenders();
+          const localTracks = this.localStream.getTracks();
+          
+          if (senders.length < localTracks.length) {
+            console.log(`Adding missing tracks to peer connection for user ${userId}`);
+            
+            // Thêm các track còn thiếu
+            localTracks.forEach(track => {
+              const hasSender = senders.some(sender => sender.track && sender.track.kind === track.kind);
+              if (!hasSender) {
+                console.log(`Adding missing ${track.kind} track to peer connection for user ${userId}`);
+                peerConnection.addTrack(track, this.localStream);
+              }
+            });
+          }
         }
-      } else {
-        console.log(`No peer connection found for user ${userId}, creating new one`);
-        peerConnection = await this.createPeerConnection(userId);
-      }
-
-      // Step 2: Make sure we have a local stream
-      if (!this.localStream || this.localStream.getTracks().length === 0) {
-        console.log(`No local stream or tracks for user ${userId}, getting user media`);
-        try {
-          this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          console.log(`Got user media with tracks: audio=${this.localStream.getAudioTracks().length}, video=${this.localStream.getVideoTracks().length}`);
-
-          // Add tracks to the peer connection
-          this.localStream.getTracks().forEach(track => {
-            console.log(`Adding ${track.kind} track to peer connection for user ${userId}`);
-            peerConnection.addTrack(track, this.localStream);
-          });
-        } catch (err) {
-          console.error(`Failed to get user media for user ${userId}:`, err);
+        
+        // Bước 3: Tạo và gửi offer nếu cần
+        if (needToCreateOffer && this.localStream) {
+          console.log(`Creating offer for user ${userId}`);
+          const offer = await this.createOffer(userId);
+          
+          // Lưu timestamp cho offer
+          peerConnection._offerTimestamp = Date.now();
+          
+          console.log(`Sending offer to user ${userId}`);
+          if (this.stompClient && this.stompClient.connected) {
+            this.stompClient.publish({
+              destination: "/app/meeting.signal",
+              body: JSON.stringify({
+                type: "offer",
+                targetUserId: userId,
+                from: this.userId,
+                meetingCode: this.meetingCode,
+                payload: JSON.stringify(offer)
+              })
+            });
+          } else {
+            console.error(`STOMP client not connected, cannot send offer to user ${userId}`);
+            // Thử kết nối lại STOMP client nếu cần
+            if (!this.stompClient || !this.stompClient.connected) {
+              console.log(`Attempting to reconnect STOMP client...`);
+              this.initialize(this.userId, this.meetingCode);
+            }
+          }
         }
+        
+        return true;
+      } catch (err) {
+        console.error(`Error ensuring connection for user ${userId}:`, err);
+        return false;
+      } finally {
+        // Luôn xóa khóa khi hoàn thành (thành công hoặc thất bại)
+        delete this[connectionKey];
       }
-
-      // Step 3: Create and send offer if needed
-      if (needToCreateOffer && this.localStream) {
-        console.log(`Creating offer for user ${userId}`);
-        const offer = await this.createOffer(userId);
-
-        console.log(`Sending offer to user ${userId}`);
-        this.stompClient.publish({
-          destination: "/app/meeting.signal",
-          body: JSON.stringify({
-            type: "offer",
-            targetUserId: userId,
-            from: this.userId,
-            meetingCode: this.meetingCode,
-            payload: JSON.stringify(offer)
-          })
-        });
-      }
-
-      return true;
-    } catch (err) {
-      console.error(`Error ensuring connection for user ${userId}:`, err);
-      return false;
-    }
+    })();
+    
+    // Trả về kết quả cuối cùng của promise
+    return await this[connectionKey];
   }
 
   // Check and restart connection if needed
@@ -1110,6 +1456,28 @@ class WebRTCService {
         }
       })
       .catch(err => console.error(`Error in checkAndRestartConnection for user ${userId}:`, err));
+  }
+
+  // Create an offer for a peer connection
+  async createOffer(userId) {
+    try {
+      const peerConnection = this.peerConnections[userId];
+      const offer = await peerConnection.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      });
+      await peerConnection.setLocalDescription(offer);
+      return offer;
+    } catch (error) {
+      console.error("Lỗi khi tạo offer:", error);
+      if (this.callbacks.onError) {
+        this.callbacks.onError({
+          message: `Lỗi khi tạo yêu cầu kết nối: ${error.message}`,
+          originalError: error
+        });
+      }
+      throw error;
+    }
   }
 }
 

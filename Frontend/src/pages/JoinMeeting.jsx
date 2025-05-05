@@ -17,19 +17,38 @@ const JoinMeeting = () => {
     setIsLoading(true)
     setError(null)
 
+    if (!meetingCode.trim()) {
+      setError("Vui lòng nhập mã cuộc họp")
+      setIsLoading(false)
+      return
+    }
+
     try {
+      console.log("Attempting to join meeting with code:", meetingCode);
       const response = await meetingService.joinMeeting(meetingCode, displayName)
+      
       if (response.success) {
         console.log("Successfully joined meeting, navigating to meeting room");
         // Use replace instead of push to avoid adding to history stack
         // This helps prevent back button issues with WebRTC connections
         navigate(`/meeting/${response.meetingCode}`, { replace: true });
       } else {
-        throw new Error("Failed to join meeting")
+        console.error("Join response unsuccessful:", response);
+        throw new Error(response.message || "Failed to join meeting")
       }
     } catch (err) {
       console.error("Error joining meeting:", err)
-      setError(err.response?.data?.message || "Failed to join meeting. Please check the meeting code and try again.")
+      
+      // Extract detailed error message
+      let errorMessage = "Không thể tham gia cuộc họp. Vui lòng kiểm tra mã cuộc họp và thử lại.";
+      
+      if (err.message) {
+        errorMessage = err.message;
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false)
     }
@@ -47,60 +66,48 @@ const JoinMeeting = () => {
 
       <div className="max-w-md mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold">Join a Meeting</h1>
-          <p className="text-muted-foreground mt-2">Enter a meeting code to join</p>
+          <h1 className="text-2xl font-bold">Tham gia cuộc họp</h1>
+          <p className="text-muted-foreground mt-2">Nhập mã cuộc họp để tham gia</p>
         </div>
 
-        {error && <div className="bg-destructive/10 text-destructive p-4 rounded-md mb-6">{error}</div>}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6 text-sm">
+            {error}
+          </div>
+        )}
 
-        <div className="bg-background border rounded-lg shadow-sm p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <label htmlFor="meetingCode" className="text-sm font-medium">
-                Meeting Code *
-              </label>
-              <input
-                id="meetingCode"
-                type="text"
-                value={meetingCode}
-                onChange={(e) => setMeetingCode(e.target.value)}
-                className="input"
-                placeholder="Enter meeting code"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="displayName" className="text-sm font-medium">
-                Your Name (for guests)
-              </label>
-              <input
-                id="displayName"
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="input"
-                placeholder="How you'll appear in the meeting"
-              />
-              <p className="text-xs text-muted-foreground">Leave empty to use your account name</p>
-            </div>
-
-            <button
-              type="submit"
-              className="btn btn-primary w-full flex items-center justify-center gap-2"
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="meetingCode" className="block text-sm font-medium mb-1">
+              Mã cuộc họp
+            </label>
+            <input
+              type="text"
+              id="meetingCode"
+              value={meetingCode}
+              onChange={(e) => setMeetingCode(e.target.value)}
+              placeholder="Nhập mã cuộc họp"
+              className="w-full p-2 border border-gray-300 rounded"
               disabled={isLoading}
-            >
-              {isLoading ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
-              ) : (
-                <>
-                  <Video size={18} />
-                  Join Meeting
-                </>
-              )}
-            </button>
-          </form>
-        </div>
+              autoFocus
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full bg-primary text-white py-2 rounded flex items-center justify-center"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></span>
+            ) : (
+              <>
+                <Video size={16} className="mr-2" />
+                Tham gia
+              </>
+            )}
+          </button>
+        </form>
       </div>
     </div>
   )

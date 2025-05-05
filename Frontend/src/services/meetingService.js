@@ -97,9 +97,11 @@ export const meetingService = {
   // Start a meeting
   startMeeting: async (meetingCode) => {
     try {
-      const response = await api.post(`/api/meetings/${meetingCode}/start`)
+      // Gọi trực tiếp đến API endpoint mới với meetingCode
+      const response = await api.post(`/api/meetings/code/${meetingCode}/start`)
       return response.data
     } catch (error) {
+      console.error("Error starting meeting:", error)
       throw error
     }
   },
@@ -107,9 +109,11 @@ export const meetingService = {
   // End a meeting
   endMeeting: async (meetingCode) => {
     try {
-      const response = await api.post(`/api/meetings/${meetingCode}/end`)
+      // Gọi trực tiếp đến API endpoint mới với meetingCode
+      const response = await api.post(`/api/meetings/code/${meetingCode}/end`)
       return response.data
     } catch (error) {
+      console.error("Error ending meeting:", error)
       throw error
     }
   },
@@ -159,18 +163,33 @@ export const meetingService = {
         lastHeartbeat: new Date().toISOString()
       }
 
-      const addUserResponse = await api.post(`/api/meetings/${meetingCode}/users/${userId}`, meetingUserRequest)
-      console.log(addUserResponse)
-      // if (!addUserResponse || addUserResponse.code !== 200) {
-      //   const errorMessage = addUserResponse?.message || "Failed to join meeting"
-      //   console.error("Join meeting error:", {
-      //     code: addUserResponse?.code,
-      //     message: errorMessage,
-      //     meetingCode,
-      //     userId
-      //   })
-      //   throw new Error(errorMessage)
-      // }
+      try {
+        console.log("Sending join request to API:", meetingCode, userId, meetingUserRequest);
+        const addUserResponse = await api.post(`/api/meetings/${meetingCode}/join/${userId}`, meetingUserRequest)
+        console.log("Join API response:", addUserResponse);
+        
+        if (!addUserResponse.data || addUserResponse.data.code !== 200) {
+          const errorMessage = addUserResponse.data?.message || "Failed to join meeting";
+          console.error("Join meeting error:", {
+            code: addUserResponse.data?.code,
+            message: errorMessage,
+            meetingCode,
+            userId
+          });
+          throw new Error(errorMessage);
+        }
+      } catch (error) {
+        console.error("API error when joining meeting:", error);
+        
+        // Trích xuất thông báo lỗi từ response nếu có
+        const serverMessage = error.response?.data?.message;
+        if (serverMessage) {
+          throw new Error(serverMessage);
+        }
+        
+        // Nếu không có message từ server, ném lỗi gốc
+        throw error;
+      }
 
       // Check if WebRTC is already initialized with the same parameters
       const isAlreadyInitialized = webrtcService.stompClient &&
@@ -228,7 +247,8 @@ export const meetingService = {
 
       return { success: true, meetingCode }
     } catch (error) {
-      throw error
+      console.error("Error joining meeting:", error);
+      throw error;
     }
   },
 
@@ -261,10 +281,32 @@ export const meetingService = {
   // Get user's meetings (scheduled or past)
   getUserMeetings: async (params = {}) => {
     try {
-      const response = await api.get("/api/meetings/user", { params })
-      return response.data
+      // Xác định userId từ thông tin người dùng hiện tại
+      const userId = await getCurrentUserId();
+      
+      if (!userId) {
+        throw new Error("User not authenticated");
+      }
+      
+      const response = await api.get(`/api/meetings/user/${userId}`, { params });
+      console.log(response)
+      
+      if (response.data && Array.isArray(response.data)) {
+        return response.data.map(item => item.result);
+      }
+      
+      // Fallback cho các trường hợp response không phải mảng
+      return response.data || [];
     } catch (error) {
-      throw error
+      console.error("Error in getUserMeetings:", error);
+      
+      // Xử lý lỗi 403 Forbidden
+      if (error.response && error.response.status === 403) {
+        console.error("Access forbidden. Check your authentication status.");
+      }
+      
+      // Trả về mảng rỗng thay vì throw error để tránh crash UI
+      return [];
     }
   },
 
@@ -326,6 +368,17 @@ export const meetingService = {
       await api.delete(`/api/meetings/${meetingCode}/users/${userId}`)
       return { success: true }
     } catch (error) {
+      throw error
+    }
+  },
+
+  // User removes themselves from meeting
+  removeParticipantSelf: async (meetingCode, userId) => {
+    try {
+      await api.post(`/api/meetings/${meetingCode}/leave/${userId}`)
+      return { success: true }
+    } catch (error) {
+      console.error("Error removing self from meeting:", error);
       throw error
     }
   }

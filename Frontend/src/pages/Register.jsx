@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, Link } from "react-router-dom"
 import { authService } from "../services/authService"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, User, Mail, UserCircle, Lock, Image, UserPlus } from "lucide-react"
 
 const Register = () => {
   const navigate = useNavigate()
@@ -16,6 +16,7 @@ const Register = () => {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [step, setStep] = useState(1) // Chia quá trình đăng ký thành 2 bước
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -23,6 +24,15 @@ const Register = () => {
       ...prev,
       [name]: value,
     }))
+  }
+
+  const goToNextStep = (e) => {
+    e.preventDefault()
+    setStep(2)
+  }
+
+  const goToPreviousStep = () => {
+    setStep(1)
   }
 
   const handleSubmit = async (e) => {
@@ -33,137 +43,192 @@ const Register = () => {
     try {
       const response = await authService.register(formData)
       if (response.code === 0) {
-        // After successful registration, automatically log in
-        const loginResponse = await authService.login({
-          username: formData.username,
-          password: formData.password
-        })
-        if (loginResponse.code === 0) {
-          // Verify authentication by getting current user
-          const userResponse = await authService.getCurrentUser()
-          if (userResponse.code === 0) {
-            navigate("/login")
-          } else {
-            setError("Registration successful but failed to get user info. Please try logging in.")
+        // Chuyển hướng đến trang đăng nhập sau khi đăng ký thành công
+        navigate("/login", {
+          state: {
+            message: "Đăng ký thành công! Vui lòng đăng nhập với tài khoản của bạn.",
+            username: formData.username
           }
-        } else {
-          setError(loginResponse.message || "Registration successful but login failed. Please try logging in.")
-        }
+        })
       } else {
-        setError(response.message || "Registration failed. Please try again.")
+        setError(response.message || "Đăng ký thất bại. Vui lòng thử lại.")
       }
     } catch (err) {
       console.error("Registration error:", err)
-      setError(err.response?.data?.message || "Failed to register. Please try again.")
+      setError(err.response?.data?.message || "Đăng ký thất bại. Vui lòng thử lại.")
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <button
-        onClick={() => navigate(-1)}
-        className="flex items-center text-muted-foreground hover:text-foreground mb-6"
-      >
-        <ArrowLeft size={16} className="mr-1" />
-        Back
-      </button>
-
-      <div className="max-w-md mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Register</h1>
-
-        {error && <div className="bg-destructive/10 text-destructive p-4 rounded-md mb-6">{error}</div>}
-
-        <div className="bg-background border rounded-lg shadow-sm p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <label htmlFor="username" className="text-sm font-medium">
-                Username *
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                value={formData.username}
-                onChange={handleChange}
-                className="input"
-                required
-              />
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+      <div className="w-full max-w-md">
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={() => step === 1 ? navigate(-1) : goToPreviousStep()}
+            className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft size={16} className="mr-1" />
+            {step === 1 ? "Quay lại" : "Quay lại bước 1"}
+          </button>
+          <div className="flex items-center">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold mr-2">
+              CM
             </div>
+            <span className="font-semibold text-lg">ConnectMe</span>
+          </div>
+        </div>
 
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email *
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="input"
-                required
-              />
-            </div>
+        <div className="bg-white/80 backdrop-blur-sm border rounded-xl shadow-lg p-8">
+          <h1 className="text-2xl font-bold mb-2 text-center">Đăng ký tài khoản</h1>
 
-            <div className="space-y-2">
-              <label htmlFor="fullName" className="text-sm font-medium">
-                Full Name *
-              </label>
-              <input
-                id="fullName"
-                name="fullName"
-                type="text"
-                value={formData.fullName}
-                onChange={handleChange}
-                className="input"
-                required
-              />
-            </div>
+          {/* Hiển thị tiến trình đăng ký */}
+          <div className="flex items-center justify-center mb-6">
+            <div className={`w-3 h-3 rounded-full ${step === 1 ? 'bg-primary' : 'bg-primary/40'} mr-1`}></div>
+            <div className={`w-3 h-3 rounded-full ${step === 2 ? 'bg-primary' : 'bg-primary/40'}`}></div>
+          </div>
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password *
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="input"
-                required
-                minLength={8}
-              />
-              <p className="text-xs text-muted-foreground">Password must be at least 8 characters long</p>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-start">
+              <span className="text-sm">{error}</span>
             </div>
+          )}
 
-            <div className="space-y-2">
-              <label htmlFor="avatar" className="text-sm font-medium">
-                Avatar URL (Optional)
-              </label>
-              <input
-                id="avatar"
-                name="avatar"
-                type="url"
-                value={formData.avatar}
-                onChange={handleChange}
-                className="input"
-                placeholder="https://example.com/avatar.jpg"
-              />
-            </div>
+          <form onSubmit={step === 1 ? goToNextStep : handleSubmit} className="space-y-5">
+            {step === 1 ? (
+              // Bước 1: Thông tin cơ bản
+              <>
+                <div className="space-y-2">
+                  <label htmlFor="username" className="text-sm font-medium flex items-center">
+                    <User size={16} className="mr-2 text-muted-foreground" />
+                    Tên đăng nhập
+                  </label>
+                  <input
+                    id="username"
+                    name="username"
+                    type="text"
+                    value={formData.username}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                    placeholder="Nhập tên đăng nhập của bạn"
+                    required
+                  />
+                </div>
 
-            <div className="flex justify-end">
-              <button type="submit" className="btn btn-primary" disabled={isLoading}>
-                {isLoading ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
-                ) : (
-                  "Register"
-                )}
-              </button>
-            </div>
+                <div className="space-y-2">
+                  <label htmlFor="email" className="text-sm font-medium flex items-center">
+                    <Mail size={16} className="mr-2 text-muted-foreground" />
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                    placeholder="Nhập địa chỉ email của bạn"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="fullName" className="text-sm font-medium flex items-center">
+                    <UserCircle size={16} className="mr-2 text-muted-foreground" />
+                    Họ và tên
+                  </label>
+                  <input
+                    id="fullName"
+                    name="fullName"
+                    type="text"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                    placeholder="Nhập họ và tên đầy đủ của bạn"
+                    required
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
+                  >
+                    Tiếp tục
+                  </button>
+                </div>
+              </>
+            ) : (
+              // Bước 2: Mật khẩu và avatar
+              <>
+                <div className="space-y-2">
+                  <label htmlFor="password" className="text-sm font-medium flex items-center">
+                    <Lock size={16} className="mr-2 text-muted-foreground" />
+                    Mật khẩu
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                    placeholder="Tạo mật khẩu của bạn"
+                    required
+                    minLength={8}
+                  />
+                  <p className="text-xs text-muted-foreground">Mật khẩu phải có ít nhất 8 ký tự</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="avatar" className="text-sm font-medium flex items-center">
+                    <Image size={16} className="mr-2 text-muted-foreground" />
+                    URL Ảnh đại diện (Tùy chọn)
+                  </label>
+                  <input
+                    id="avatar"
+                    name="avatar"
+                    type="url"
+                    value={formData.avatar}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                    placeholder="https://example.com/avatar.jpg"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                    ) : (
+                      <>
+                        <UserPlus size={18} className="mr-2" />
+                        Hoàn tất đăng ký
+                      </>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
           </form>
+
+          <div className="mt-8 text-center">
+            <p className="text-muted-foreground">
+              Đã có tài khoản?{" "}
+              <Link to="/login" className="text-primary hover:underline font-medium">
+                Đăng nhập ngay
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8 text-center text-sm text-muted-foreground">
+          &copy; {new Date().getFullYear()} ConnectMe. Mọi quyền được bảo lưu.
         </div>
       </div>
     </div>

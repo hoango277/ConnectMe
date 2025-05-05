@@ -1,16 +1,18 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
 import { meetingService } from "../services/meetingService"
-import { Calendar, Clock, Plus, Video, Users } from "lucide-react"
+import { Calendar, Clock, Plus, Video, Users, Play } from "lucide-react"
 
 const Dashboard = () => {
   const { currentUser } = useAuth()
   const [meetings, setMeetings] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [startingMeeting, setStartingMeeting] = useState(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     const fetchMeetings = async () => {
@@ -28,25 +30,57 @@ const Dashboard = () => {
     fetchMeetings()
   }, [])
 
+  const handleStartMeeting = async (meetingCode) => {
+    try {
+      setStartingMeeting(meetingCode)
+      const response = await meetingService.startMeeting(meetingCode)
+      console.log("Meeting started:", response)
+      
+      // Chuyển hướng đến trang phòng họp sau khi bắt đầu thành công
+      navigate(`/meeting/${meetingCode}`)
+    } catch (error) {
+      console.error("Failed to start meeting:", error)
+      setError("Failed to start the meeting. Please try again.")
+    } finally {
+      setStartingMeeting(null)
+    }
+  }
+
   const formatDate = (dateString) => {
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date)
+    try {
+      const date = new Date(dateString)
+      return new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date)
+    } catch (error) {
+      console.error("Error formatting date:", dateString, error)
+      return "Invalid date"
+    }
   }
 
   const getUpcomingMeetings = () => {
+    console.log("Filtering upcoming meetings from:", meetings)
     const now = new Date()
-    return meetings.filter((meeting) => new Date(meeting.scheduledTime) > now && meeting.status !== "ended")
+    return meetings.filter((meeting) => {
+      // Sử dụng actualStart thay vì scheduledTime, và meetingStatus thay vì status
+      const meetingDate = new Date(meeting.actualStart)
+      const isUpcoming = meetingDate > now && meeting.meetingStatus !== "ENDED"
+      console.log(`Meeting ${meeting.title}: date=${meetingDate}, status=${meeting.meetingStatus}, isUpcoming=${isUpcoming}`)
+      return isUpcoming
+    })
   }
 
   const getPastMeetings = () => {
     const now = new Date()
-    return meetings.filter((meeting) => new Date(meeting.scheduledTime) < now || meeting.status === "ended")
+    return meetings.filter((meeting) => {
+      // Sử dụng actualStart thay vì scheduledTime, và meetingStatus thay vì status
+      const meetingDate = new Date(meeting.actualStart)
+      return meetingDate < now || meeting.meetingStatus === "ENDED"
+    })
   }
 
   const upcomingMeetings = getUpcomingMeetings()
@@ -100,15 +134,16 @@ const Dashboard = () => {
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center text-muted-foreground">
                         <Calendar size={16} className="mr-2" />
-                        {formatDate(meeting.scheduledTime)}
+                        {formatDate(meeting.actualStart)}
                       </div>
                       <div className="flex items-center text-muted-foreground">
                         <Clock size={16} className="mr-2" />
-                        {meeting.duration} minutes
+                        {/* Tính số phút dựa trên thời gian bắt đầu và kết thúc */}
+                        {Math.round((new Date(meeting.actualEnd) - new Date(meeting.actualStart)) / (1000 * 60))} minutes
                       </div>
                       <div className="flex items-center text-muted-foreground">
                         <Users size={16} className="mr-2" />
-                        {meeting.participantCount || 0} participants
+                        {meeting.totalParticipants || 0} participants
                       </div>
                     </div>
                   </div>
@@ -116,9 +151,14 @@ const Dashboard = () => {
                     <div className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
                       Meeting ID: {meeting.meetingCode}
                     </div>
-                    <Link to={`/meeting/${meeting.meetingCode}`} className="text-primary hover:underline text-sm font-medium">
-                      Join
-                    </Link>
+                    <button 
+                      onClick={() => handleStartMeeting(meeting.meetingCode)} 
+                      disabled={startingMeeting === meeting.meetingCode}
+                      className="text-primary hover:underline text-sm font-medium flex items-center gap-1"
+                    >
+                      <Play size={14} />
+                      {startingMeeting === meeting.meetingCode ? "Starting..." : "Start"}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -148,12 +188,12 @@ const Dashboard = () => {
                   {pastMeetings.map((meeting) => (
                     <tr key={meeting.meetingCode} className="border-b hover:bg-muted/50">
                       <td className="p-3">{meeting.title}</td>
-                      <td className="p-3">{formatDate(meeting.scheduledTime)}</td>
-                      <td className="p-3">{meeting.duration} minutes</td>
-                      <td className="p-3">{meeting.participantCount || 0}</td>
+                      <td className="p-3">{formatDate(meeting.actualStart)}</td>
+                      <td className="p-3">{Math.round((new Date(meeting.actualEnd) - new Date(meeting.actualStart)) / (1000 * 60))} minutes</td>
+                      <td className="p-3">{meeting.totalParticipants || 0}</td>
                       <td className="p-3">
                         <span className="px-2 py-1 rounded-full text-xs bg-muted-foreground/20 text-muted-foreground">
-                          {meeting.status}
+                          {meeting.meetingStatus}
                         </span>
                       </td>
                     </tr>
