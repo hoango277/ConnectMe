@@ -20,7 +20,10 @@ const JoinMeeting = () => {
     try {
       const response = await meetingService.joinMeeting(meetingCode, displayName)
       if (response.success) {
-        navigate(`/meeting/${response.meetingCode}`)
+        console.log("Successfully joined meeting, navigating to meeting room");
+        // Use replace instead of push to avoid adding to history stack
+        // This helps prevent back button issues with WebRTC connections
+        navigate(`/meeting/${response.meetingCode}`, { replace: true });
       } else {
         throw new Error("Failed to join meeting")
       }
