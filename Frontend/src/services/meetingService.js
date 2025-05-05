@@ -122,10 +122,12 @@ export const meetingService = {
       if (meetingResponse.code !== 200) {
         throw new Error(meetingResponse.message || "Meeting not found")
       }
+      console.log(meetingResponse)
+      return meetingResponse;
 
       // Then get the full meeting details using the ID
-      const response = await api.get(`/api/meetings/${meetingResponse.result.meetingCode}`)
-      return response.data
+      // const response = await api.get(`/api/meetings/${meetingResponse.result.meetingCode}`)
+      // return response.data
     } catch (error) {
       throw error
     }
@@ -158,45 +160,71 @@ export const meetingService = {
       }
 
       const addUserResponse = await api.post(`/api/meetings/${meetingCode}/users/${userId}`, meetingUserRequest)
-      if (!addUserResponse || addUserResponse.code !== 200) {
-        const errorMessage = addUserResponse?.message || "Failed to join meeting"
-        console.error("Join meeting error:", {
-          code: addUserResponse?.code,
-          message: errorMessage,
-          meetingCode,
-          userId
+      console.log(addUserResponse)
+      // if (!addUserResponse || addUserResponse.code !== 200) {
+      //   const errorMessage = addUserResponse?.message || "Failed to join meeting"
+      //   console.error("Join meeting error:", {
+      //     code: addUserResponse?.code,
+      //     message: errorMessage,
+      //     meetingCode,
+      //     userId
+      //   })
+      //   throw new Error(errorMessage)
+      // }
+
+      // Check if WebRTC is already initialized with the same parameters
+      const isAlreadyInitialized = webrtcService.stompClient &&
+                                  webrtcService.stompClient.connected &&
+                                  webrtcService.userId === userId &&
+                                  webrtcService.meetingCode === meetingCode;
+
+      console.log("Joining meeting, WebRTC status:",
+                 isAlreadyInitialized ? "already initialized" : "initializing");
+
+      // Initialize WebRTC service with the meeting if not already initialized
+      if (!isAlreadyInitialized) {
+        await new Promise((resolve, reject) => {
+          webrtcService.initialize(userId, meetingCode)
+
+          // Wait for the STOMP client to connect
+          const checkConnection = setInterval(() => {
+            if (webrtcService.stompClient && webrtcService.stompClient.connected) {
+              clearInterval(checkConnection)
+              resolve()
+            }
+          }, 100)
+
+          // Timeout after 5 seconds
+          setTimeout(() => {
+            clearInterval(checkConnection)
+            reject(new Error("Failed to connect to WebSocket server"))
+          }, 5000)
         })
-        throw new Error(errorMessage)
+      } else {
+        console.log("Reusing existing WebRTC connection");
       }
 
-      // Initialize WebRTC service with the meeting
-      await new Promise((resolve, reject) => {
-        webrtcService.initialize(userId, meetingCode)
-        
-        // Wait for the STOMP client to connect
-        const checkConnection = setInterval(() => {
-          if (webrtcService.stompClient && webrtcService.stompClient.connected) {
-            clearInterval(checkConnection)
-            resolve()
-          }
-        }, 100)
+      // Send join request via WebSocket - this is the ONLY place where join should be sent
+      // Check if we're already connected to this meeting to avoid duplicate join messages
+      const isAlreadyJoined = webrtcService.userId === userId &&
+                             webrtcService.meetingCode === meetingCode &&
+                             webrtcService.hasJoinedMeeting;
 
-        // Timeout after 5 seconds
-        setTimeout(() => {
-          clearInterval(checkConnection)
-          reject(new Error("Failed to connect to WebSocket server"))
-        }, 5000)
-      })
+      if (!isAlreadyJoined) {
+        console.log("Sending join message for user", userId, "to meeting", meetingCode);
+        webrtcService.stompClient.publish({
+          destination: "/app/meeting.join",
+          body: JSON.stringify({
+            userId: userId,
+            meetingCode: meetingCode,
+          })
+        });
 
-      // Send join request via WebSocket
-      webrtcService.stompClient.publish({
-        destination: "/app/meeting.join",
-        body: JSON.stringify({
-          userId: userId,
-          meetingCode: meetingCode,
-          meetingUserRequest: meetingUserRequest
-        })
-      })
+        // Mark that we've joined this meeting to prevent duplicate join messages
+        webrtcService.hasJoinedMeeting = true;
+      } else {
+        console.log("User", userId, "already joined meeting", meetingCode, "- skipping join message");
+      }
 
       return { success: true, meetingCode }
     } catch (error) {
@@ -244,9 +272,41 @@ export const meetingService = {
   getMeetingParticipants: async (meetingCode) => {
     try {
       const response = await api.get(`/api/meetings/${meetingCode}/all`)
-      return response.data
+      // Map API result to frontend shape
+      if (response.data && Array.isArray(response.data.result)) {
+        const mapped = response.data.result.map((p) => {
+          // Use the name directly from the participant object if available
+          // This is the most reliable source based on the provided data structure
+          let participantName = p.name;
+
+          // If name is not available at the top level, try the user object
+          if (!participantName && p.user) {
+            if (p.user.fullName) participantName = p.user.fullName;
+            else if (p.user.username) participantName = p.user.username;
+            else if (p.user.email) participantName = p.user.email;
+          }
+
+          // Final fallback
+          if (!participantName) participantName = "Unknown";
+
+          console.log("Participant mapping:", p.id, "->", participantName);
+
+          // Create a clean participant object with the correct structure
+          return {
+            id: p.id,
+            name: participantName,
+            audioEnabled: !p.isMuted,
+            videoEnabled: p.isCameraOn,
+            role: p.role,
+            isOnline: p.isOnline,
+            user: p.user
+          };
+        });
+        return mapped;
+      }
+      return [];
     } catch (error) {
-      throw error
+      throw error;
     }
   },
 

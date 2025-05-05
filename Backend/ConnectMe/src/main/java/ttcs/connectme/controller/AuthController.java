@@ -41,7 +41,7 @@ public class AuthController {
             @RequestBody LoginRequest request,
             HttpServletResponse httpServletResponse
     ) {
-        LoginResponse loginResponse = authService.authenticate(request);
+            LoginResponse loginResponse = authService.authenticate(request);
 
         Cookie cookie = new Cookie("jwt", loginResponse.getToken());
         cookie.setHttpOnly(true);
