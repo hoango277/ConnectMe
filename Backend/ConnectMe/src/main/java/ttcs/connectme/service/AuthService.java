@@ -1,11 +1,10 @@
 package ttcs.connectme.service;
 
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.JWSObject;
-import com.nimbusds.jose.Payload;
+import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
@@ -13,13 +12,18 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import ttcs.connectme.dto.request.LoginRequest;
+import ttcs.connectme.dto.request.LogoutRequest;
+import ttcs.connectme.dto.request.RefreshRequest;
 import ttcs.connectme.dto.request.UserCreateRequest;
 import ttcs.connectme.dto.response.LoginResponse;
+import ttcs.connectme.dto.response.RefreshResponse;
 import ttcs.connectme.dto.response.UserResponse;
+import ttcs.connectme.entity.InvalidatedTokenEntity;
 import ttcs.connectme.entity.UserEntity;
 import ttcs.connectme.enums.ErrorCode;
 import ttcs.connectme.exception.AppException;
 import ttcs.connectme.mapper.UserMapper;
+import ttcs.connectme.repository.InvalidatedTokenRepository;
 import ttcs.connectme.repository.UserRepository;
 
 import java.time.Instant;
@@ -34,6 +38,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final InvalidatedTokenRepository invalidatedTokenRepository;
 
     @NonFinal
     @Value("${SIGNER_KEY}")
@@ -54,7 +59,7 @@ public class AuthService {
     }
 
     public LoginResponse authenticate(LoginRequest request) {
-        UserEntity user = userRepository.findByUsername(request.getUsername())
+        UserEntity user = userRepository.findByUsernameAndIsDeleted(request.getUsername(), false)
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_CREDENTIALS));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash()))
@@ -68,6 +73,35 @@ public class AuthService {
         return LoginResponse.builder()
                 .token(token)
                 .user(userInfo)
+                .build();
+    }
+
+    public void logout(LogoutRequest request) throws Exception {
+        SignedJWT signedJWT = verifyToken(request.getToken());
+        String id = signedJWT.getJWTClaimsSet().getJWTID();
+        Date expiryTime = signedJWT.getJWTClaimsSet().getExpirationTime();
+        invalidatedTokenRepository.save(InvalidatedTokenEntity.builder()
+                .id(id)
+                .expiryTime(expiryTime)
+                .build());
+    }
+
+    public RefreshResponse refresh(RefreshRequest request) throws Exception {
+        SignedJWT signedJWT = SignedJWT.parse(request.getToken());
+        String id = signedJWT.getJWTClaimsSet().getJWTID();
+        Date expiryTime = signedJWT.getJWTClaimsSet().getExpirationTime();
+        Long userId = Long.parseLong(signedJWT.getJWTClaimsSet().getSubject());
+
+        UserEntity user = userRepository.findByIdAndIsDeleted(userId, false)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        invalidatedTokenRepository.save(InvalidatedTokenEntity.builder()
+                .id(id)
+                .expiryTime(expiryTime)
+                .build());
+
+        return RefreshResponse.builder()
+                .token(generateToken(user))
                 .build();
     }
 
@@ -94,5 +128,20 @@ public class AuthService {
             log.error ("Cannot create token", e);
             throw new RuntimeException(e);
         }
+    }
+
+    private SignedJWT verifyToken(String token) throws Exception {
+        JWSVerifier verifier = new MACVerifier(signerKey);
+        SignedJWT signedJWT = SignedJWT.parse(token);
+        Date expiration = signedJWT.getJWTClaimsSet().getExpirationTime();
+        boolean verified = signedJWT.verify(verifier);
+
+        if (!(verified && expiration.after(new Date())))
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+
+        if (invalidatedTokenRepository.existsById(signedJWT.getJWTClaimsSet().getJWTID()))
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+
+        return signedJWT;
     }
 }

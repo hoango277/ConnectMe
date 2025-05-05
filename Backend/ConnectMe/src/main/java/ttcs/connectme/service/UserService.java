@@ -20,14 +20,14 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
 
     public UserResponse getCurrentUser(Long id) {
-        UserEntity user = userRepository.findById(id)
+        UserEntity user = userRepository.findByIdAndIsDeleted(id, false)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         return userMapper.toResponse(user);
     }
 
     public UserResponse updateUser(Long id, UserUpdateRequest request) {
-        UserEntity user = userRepository.findById(id)
+        UserEntity user = userRepository.findByIdAndIsDeleted(id, false)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         String username = request.getUsername();
@@ -45,7 +45,7 @@ public class UserService {
     }
 
     public void updatePassword(Long id, PasswordUpdateRequest request) {
-        UserEntity user = userRepository.findById(id)
+        UserEntity user = userRepository.findByIdAndIsDeleted(id, false)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash()))
