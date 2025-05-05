@@ -24,7 +24,8 @@ public enum ErrorCode {
     USERNAME_EXISTED("Username existed", HttpStatus.BAD_REQUEST),
     EMAIL_EXISTED("Email existed", HttpStatus.BAD_REQUEST),
     INVALID_CREDENTIALS("Invalid Credentials", HttpStatus.UNAUTHORIZED),
-    INCORRECT_PASSWORD("Incorrect current password", HttpStatus.BAD_REQUEST);
+    INCORRECT_PASSWORD("Incorrect current password", HttpStatus.BAD_REQUEST),
+    FILE_UPLOAD_ERROR("File upload error", HttpStatus.BAD_REQUEST);
 
     String message;
     HttpStatusCode statusCode;
