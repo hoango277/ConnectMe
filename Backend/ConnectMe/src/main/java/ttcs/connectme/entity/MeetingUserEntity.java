@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Table(name = "meeting_user")
+@Table(name = "meeting_users")
 public class MeetingUserEntity extends BaseEntity {
 
     @Id
