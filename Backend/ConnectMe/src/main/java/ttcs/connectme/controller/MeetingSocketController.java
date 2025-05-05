@@ -1,6 +1,7 @@
 package ttcs.connectme.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -10,9 +11,11 @@ import ttcs.connectme.dto.webrtc.*;
 import ttcs.connectme.service.MeetingService;
 import ttcs.connectme.service.MeetingUserService;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Controller
 public class MeetingSocketController {
-
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
@@ -24,12 +27,22 @@ public class MeetingSocketController {
      */
     @MessageMapping("/meeting.join")
     public void joinMeeting(@Payload JoinMeetingRequest request) {
-
+        Long userId = null;
+        try {
+            userId = request.getUserId();
+            if (userId == null) {
+                throw new IllegalArgumentException("userId cannot be null");
+            }
+        } catch (Exception e) {
+            sendErrorToUser(request.getUserId() != null ? request.getUserId().toString() : "unknown",
+                    request.getMeetingCode(),
+                    "ERROR: userId format invalid - " + e.getMessage());
+            return;
+        }
 
         messagingTemplate.convertAndSend(
                 "/topic/meeting." + request.getMeetingCode() + ".user.joined",
-                new UserJoinedEvent(request.getUserId(), request.getMeetingCode())
-        );
+                new UserJoinedEvent(userId, request.getMeetingCode()));
     }
 
     /**
@@ -37,15 +50,23 @@ public class MeetingSocketController {
      */
     @MessageMapping("/meeting.leave")
     public void leaveMeeting(@Payload LeaveMeetingRequest request) {
+        Long userId = null;
+        try {
+            userId = request.getUserId();
+            if (userId == null) {
+                throw new IllegalArgumentException("userId cannot be null");
+            }
+        } catch (Exception e) {
+            return;
+        }
+
         // Process user leaving the meeting
-        meetingUserService.deleteByMeetingIdAndUserId(request.getMeetingCode(),
-                request.getUserId());
+        meetingUserService.deleteByMeetingIdAndUserId(request.getMeetingCode(), userId);
 
         // Broadcast to all participants that a user left
         messagingTemplate.convertAndSend(
                 "/topic/meeting." + request.getMeetingCode() + ".user.left",
-                new UserLeftEvent(request.getUserId(), request.getMeetingCode())
-        );
+                new UserLeftEvent(userId, request.getMeetingCode()));
     }
 
     /**
@@ -53,12 +74,22 @@ public class MeetingSocketController {
      */
     @MessageMapping("/meeting.signal")
     public void signal(@Payload SignalRequest request) {
+        if (request.getTargetUserId() == null) {
+            return;
+        }
+
         // Forward the signal to the specific user
-        messagingTemplate.convertAndSendToUser(
-                request.getTargetUserId(),
-                "/topic/meeting." + request.getMeetingCode() + ".signal",
-                request
-        );
+        try {
+            messagingTemplate.convertAndSendToUser(
+                    request.getTargetUserId(),
+                    "/topic/meeting." + request.getMeetingCode() + ".signal",
+                    request);
+        } catch (Exception e) {
+            // Gửi thông báo lỗi về lại cho người gửi
+            sendErrorToUser(request.getFrom(),
+                    request.getMeetingCode(),
+                    "Error forwarding signal: " + e.getMessage());
+        }
     }
 
     /**
@@ -69,8 +100,7 @@ public class MeetingSocketController {
         // Broadcast the chat message to all participants
         messagingTemplate.convertAndSend(
                 "/topic/meeting." + message.getMeetingCode() + ".chat",
-                message
-        );
+                message);
     }
 
     /**
@@ -81,8 +111,7 @@ public class MeetingSocketController {
         // Broadcast the file to all participants
         messagingTemplate.convertAndSend(
                 "/topic/meeting." + file.getMeetingCode() + ".file",
-                file
-        );
+                file);
     }
 
     /**
@@ -93,7 +122,28 @@ public class MeetingSocketController {
         // Broadcast the media state change to all participants
         messagingTemplate.convertAndSend(
                 "/topic/meeting." + update.getMeetingCode() + ".media.state",
-                update
-        );
+                update);
+    }
+
+    /**
+     * Gửi thông báo lỗi đến người dùng cụ thể
+     */
+    private void sendErrorToUser(String userId, String meetingCode, String errorMessage) {
+        Map<String, Object> errorPayload = new HashMap<>();
+        errorPayload.put("type", "error");
+        errorPayload.put("message", errorMessage);
+        errorPayload.put("timestamp", System.currentTimeMillis());
+
+        messagingTemplate.convertAndSendToUser(
+                userId,
+                "/topic/meeting." + meetingCode + ".error",
+                errorPayload);
+    }
+
+    /**
+     * Handle exceptions for all message mappings
+     */
+    @MessageExceptionHandler
+    public void handleException(Exception exception) {
     }
 }

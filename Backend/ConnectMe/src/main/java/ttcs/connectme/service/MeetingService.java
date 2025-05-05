@@ -124,8 +124,66 @@ public class MeetingService {
                 .build();
     }
 
+    public ApiResponse<MeetingResponse> startMeetingByCode(String meetingCode) {
+        MeetingEntity meeting = meetingRepository.findByMeetingCodeAndIsDeletedFalse(meetingCode)
+                .orElseThrow(() -> new AppException(ErrorCode.MEETING_NOT_FOUND));
+
+        if (meeting.getMeetingStatus() != MeetingStatus.SCHEDULED) {
+            return ApiResponse.<MeetingResponse>builder()
+                    .code(400)
+                    .message("Only scheduled meetings can be started")
+                    .build();
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime scheduledStart = meeting.getActualStart();
+
+        if (scheduledStart.isAfter(now)) {
+            meeting.setActualStart(now);
+            meeting.setActualEnd(now.plusMinutes(30));
+        }
+
+        meeting.setMeetingStatus(MeetingStatus.ONGOING);
+        MeetingEntity updatedMeeting = meetingRepository.save(meeting);
+
+        MeetingResponse response = meetingMapper.toResponse(updatedMeeting);
+        response.setHostId(meeting.getHost().getId());
+
+        return ApiResponse.<MeetingResponse>builder()
+                .code(200)
+                .message("Meeting started successfully")
+                .result(response)
+                .build();
+    }
+
     public ApiResponse<MeetingResponse> endMeeting(Long id) {
         MeetingEntity meeting = meetingRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.MEETING_NOT_FOUND));
+
+        if (meeting.getMeetingStatus() != MeetingStatus.ONGOING) {
+            return ApiResponse.<MeetingResponse>builder()
+                    .code(400)
+                    .message("Only ongoing meetings can be ended")
+                    .build();
+        }
+
+        meeting.setMeetingStatus(MeetingStatus.ENDED);
+        meeting.setActualEnd(LocalDateTime.now());
+        meeting.setCurrentParticipants(0);
+
+        MeetingEntity updatedMeeting = meetingRepository.save(meeting);
+        MeetingResponse response = meetingMapper.toResponse(updatedMeeting);
+        response.setHostId(meeting.getHost().getId());
+
+        return ApiResponse.<MeetingResponse>builder()
+                .code(200)
+                .message("Meeting ended successfully")
+                .result(response)
+                .build();
+    }
+
+    public ApiResponse<MeetingResponse> endMeetingByCode(String meetingCode) {
+        MeetingEntity meeting = meetingRepository.findByMeetingCodeAndIsDeletedFalse(meetingCode)
                 .orElseThrow(() -> new AppException(ErrorCode.MEETING_NOT_FOUND));
 
         if (meeting.getMeetingStatus() != MeetingStatus.ONGOING) {
