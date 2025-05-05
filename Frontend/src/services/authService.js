@@ -15,8 +15,6 @@ export const authService = {
   login: async (credentials) => {
     try {
       const response = await api.post("/api/auth/login", credentials)
-      // The backend sets the JWT cookie automatically
-      console.log(response.data);
       return response.data
     } catch (error) {
       throw error

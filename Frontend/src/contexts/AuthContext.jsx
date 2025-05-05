@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from "react"
 import { api } from "../services/api"
+import { useNavigate } from "react-router-dom"
 
 const AuthContext = createContext()
 
@@ -12,6 +13,31 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const navigate = useNavigate()
+
+  // Listen for auth:expired events from the API interceptor
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setCurrentUser(null)
+      setIsAuthenticated(false)
+      
+      // Use navigate from react-router to redirect
+      navigate("/login")
+    }
+
+    window.addEventListener("auth:expired", handleAuthExpired)
+    
+    return () => {
+      window.removeEventListener("auth:expired", handleAuthExpired)
+    }
+  }, [navigate])
+
+  // Check on app startup if we need to redirect due to a previous auth error
+  useEffect(() => {
+    if (api.isAuthRedirectNeeded()) {
+      navigate("/login")
+    }
+  }, [navigate])
 
   useEffect(() => {
     // fetch user on startup via cookie
@@ -41,7 +67,7 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post("/api/auth/login", { username, password })
       // cookie 'jwt' is set by backend
       const payload = response.data.result || response.data
-      const user = payload.user || payload.user
+      const user = payload.user || payload
       setCurrentUser(user)
       setIsAuthenticated(true)
       return true
@@ -73,6 +99,8 @@ export const AuthProvider = ({ children }) => {
     } catch {} finally {
       setCurrentUser(null)
       setIsAuthenticated(false)
+      // Use navigate in the context
+      navigate("/login")
     }
   }
 

@@ -22,6 +22,8 @@ import {
   FileText,
   Download,
   Paperclip,
+  AlertTriangle,
+  RefreshCw
 } from "lucide-react"
 
 const MeetingRoom = () => {
@@ -276,7 +278,7 @@ const MeetingRoom = () => {
             webrtcService.ensureConnectionAndSendOffer(participantUserId);
           }
         });
-    }, 5000);
+    }, 10000); // Tăng từ 5000ms lên 10000ms
   }
 
   // Handle participant joined
@@ -714,7 +716,18 @@ const MeetingRoom = () => {
   // Handle WebRTC error
   const handleWebRTCError = (error) => {
     console.error("WebRTC error:", error)
-    setError("Connection error. Please try rejoining the meeting.")
+    
+    // Hiển thị thông báo lỗi cụ thể nếu có
+    let errorMessage = "Lỗi kết nối. Vui lòng thử tham gia lại cuộc họp.";
+    
+    if (error && error.message) {
+      errorMessage = error.message;
+    }
+    
+    setError(errorMessage);
+    
+    // Hiển thị thông báo hệ thống trong cuộc họp để người dùng biết
+    addSystemMessage(`Lỗi: ${errorMessage}`);
   }
 
   // Add system message to chat
@@ -767,6 +780,15 @@ const MeetingRoom = () => {
     try {
       console.log("User explicitly leaving meeting - cleaning up WebRTC connection");
 
+      // Gọi API REST để xóa người dùng khỏi phòng họp
+      try {
+        await meetingService.removeParticipantSelf(meetingCode, currentUser.id);
+        console.log("Successfully removed user from meeting via REST API");
+      } catch (apiErr) {
+        console.error("Error calling leave meeting API:", apiErr);
+        // Tiếp tục thực hiện các bước tiếp theo ngay cả khi API gặp lỗi
+      }
+
       // Explicitly send leave message and clean up resources
       webrtcService.leaveMeeting(true);
 
@@ -790,14 +812,18 @@ const MeetingRoom = () => {
     const message = {
       id: Date.now(),
       senderId: currentUser.id,
-      senderName: currentUser.name,
+      senderName: currentUser.name || currentUser.fullName || "You",
       text: messageInput,
       timestamp: new Date().toISOString(),
       type: "user",
     }
 
+    // Gửi tin nhắn qua WebSocket
     webrtcService.sendMessage(message)
-    setChatMessages((prev) => [...prev, message])
+    
+    // Không thêm tin nhắn vào danh sách ở đây nữa
+    // Tin nhắn sẽ được thêm vào khi nhận được từ WebSocket
+    
     setMessageInput("")
 
     // Scroll to bottom of chat
@@ -900,13 +926,42 @@ const MeetingRoom = () => {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <div className="bg-destructive/10 text-destructive p-6 rounded-lg max-w-md text-center">
-          <h2 className="text-xl font-bold mb-2">Error</h2>
-          <p>{error}</p>
-          <button onClick={() => navigate("/")} className="btn btn-primary mt-4">
-            Return to Dashboard
-          </button>
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-background p-6 z-50">
+        <div className="bg-card shadow-lg rounded-lg max-w-md w-full p-6 border">
+          <div className="flex items-center gap-3 mb-4 text-red-500">
+            <AlertTriangle className="h-6 w-6" />
+            <h2 className="text-xl font-semibold">Lỗi kết nối</h2>
+          </div>
+          
+          <p className="mb-6 text-card-foreground">{error}</p>
+          
+          <div className="flex flex-col md:flex-row gap-3 justify-end">
+            <button
+              className="px-4 py-2 rounded-md flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={() => {
+                setError(null); 
+                setIsLoading(true);
+                initializeWebRTC().then(() => {
+                  setIsLoading(false);
+                }).catch(err => {
+                  console.error("Error reinitializing WebRTC:", err);
+                  setIsLoading(false);
+                  handleWebRTCError(err);
+                });
+              }}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Thử lại
+            </button>
+            
+            <button
+              className="px-4 py-2 rounded-md flex items-center justify-center gap-2 bg-red-500 text-white hover:bg-red-600"
+              onClick={() => navigate("/", { replace: true })}
+            >
+              <X className="h-4 w-4" />
+              Quay lại
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -1355,7 +1410,7 @@ const MeetingRoom = () => {
                     >
                       {message.type !== "system" && (
                         <p className="text-xs text-muted-foreground">
-                          {message.senderId === currentUser.id ? "You" : message.senderName}
+                          {message.senderName}
                         </p>
                       )}
                       <div
