@@ -71,6 +71,9 @@ const CreateMeeting = () => {
     setIsLoading(true)
     setError(null)
 
+
+    
+
     try {
       const meetingData = {
         title: "Instant Meeting",
@@ -81,7 +84,32 @@ const CreateMeeting = () => {
 
       const response = await meetingService.createMeeting(meetingData)
       if (response.code === 200) {
-        navigate(`/meeting/${response.result.meetingCode}`)
+        try {
+          const resJoin = await meetingService.joinMeeting(response.result.meetingCode)
+          
+          if (resJoin.success) {
+            console.log("Successfully joined meeting, navigating to meeting room");
+            // Use replace instead of push to avoid adding to history stack
+            // This helps prevent back button issues with WebRTC connections
+            navigate(`/meeting/${resJoin.meetingCode}`, { replace: true });
+          } else {
+            console.error("Join response unsuccessful:", response);
+            throw new Error(response.message || "Failed to join meeting")
+          }
+        } catch (err) {
+          console.error("Error joining meeting:", err)
+          
+          // Extract detailed error message
+          let errorMessage = "Không thể tham gia cuộc họp. Vui lòng kiểm tra mã cuộc họp và thử lại.";
+          
+          if (err.message) {
+            errorMessage = err.message;
+          } else if (err.response?.data?.message) {
+            errorMessage = err.response.data.message;
+          }
+          
+          setError(errorMessage);
+        }
       } else {
         throw new Error(response.message || "Failed to create meeting")
       }
