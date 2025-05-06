@@ -1304,10 +1304,18 @@ const MeetingRoom = () => {
               );
             })}
 
-            {/* Screen share */}
             {isScreenSharing && (
               <div className="relative bg-muted rounded-lg overflow-hidden aspect-video col-span-full">
-                <video ref={screenShareRef} autoPlay playsInline className="w-full h-full object-contain" />
+                <video
+                  ref={el => {
+                    if (el && webrtcService.screenStream) {
+                      el.srcObject = webrtcService.screenStream;
+                    }
+                  }}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-contain"
+                />
                 <div className="absolute bottom-2 left-2 bg-background/80 px-2 py-1 rounded text-sm">Your screen</div>
               </div>
             )}
