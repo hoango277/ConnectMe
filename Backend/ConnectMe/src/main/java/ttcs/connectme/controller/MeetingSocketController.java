@@ -60,9 +60,6 @@ public class MeetingSocketController {
             return;
         }
 
-        // Process user leaving the meeting
-        meetingUserService.deleteByMeetingIdAndUserId(request.getMeetingCode(), userId);
-
         // Broadcast to all participants that a user left
         messagingTemplate.convertAndSend(
                 "/topic/meeting." + request.getMeetingCode() + ".user.left",
@@ -77,15 +74,12 @@ public class MeetingSocketController {
         if (request.getTargetUserId() == null) {
             return;
         }
-
-        // Forward the signal to the specific user
         try {
             messagingTemplate.convertAndSendToUser(
                     request.getTargetUserId(),
                     "/topic/meeting." + request.getMeetingCode() + ".signal",
                     request);
         } catch (Exception e) {
-            // Gửi thông báo lỗi về lại cho người gửi
             sendErrorToUser(request.getFrom(),
                     request.getMeetingCode(),
                     "Error forwarding signal: " + e.getMessage());
