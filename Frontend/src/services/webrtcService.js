@@ -988,7 +988,7 @@ class WebRTCService {
         videoTrack.onended = () => {
           this.stopScreenSharing()
         }
-
+        console.log(this.screenStream);
         return this.screenStream
       }
     } catch (error) {
