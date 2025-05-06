@@ -262,12 +262,13 @@ class WebRTCService {
     // Subscribe to media state updates
     this.stompClient.subscribe(`/topic/meeting.${meetingCode}.media.state`, (message) => {
       const data = JSON.parse(message.body)
+      console.log(data);
       if (data.userId !== userId) {
-        if (data.type === "audio") {
+        if (data.mediaType === "audio") {
           if (this.callbacks.onParticipantAudioToggle) {
             this.callbacks.onParticipantAudioToggle(data.userId, data.enabled)
           }
-        } else if (data.type === "video") {
+        } else if (data.mediaType === "video") {
           if (this.callbacks.onParticipantVideoToggle) {
             this.callbacks.onParticipantVideoToggle(data.userId, data.enabled)
           }

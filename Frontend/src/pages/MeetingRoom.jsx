@@ -710,19 +710,20 @@ const MeetingRoom = () => {
   // Handle participant audio toggle
   const handleParticipantAudioToggle = (userId, enabled) => {
     setParticipants(prev =>
-      prev.map(p =>
-        p.id === userId
-          ? { ...p, audioEnabled: enabled }
-          : p
-      )
-    )
-  }
+      prev.map(p => {
+        if (p.user.id === userId) {
+          return { ...p, audioEnabled: enabled };
+        }
+        return p;
+      })
+    );
+  }  
 
   // Handle participant video toggle
   const handleParticipantVideoToggle = (userId, enabled) => {
     setParticipants(prev =>
       prev.map(p =>
-        p.id === userId
+        p.user.id === userId
           ? { ...p, videoEnabled: enabled }
           : p
       )
@@ -763,12 +764,15 @@ const MeetingRoom = () => {
   // Toggle audio
   const toggleAudio = () => {
     webrtcService.toggleAudio(!audioEnabled)
+    handleParticipantAudioToggle(currentUser.id, !audioEnabled);
     setAudioEnabled(!audioEnabled)
+    
   }
 
   // Toggle video
   const toggleVideo = () => {
     webrtcService.toggleVideo(!videoEnabled)
+    handleParticipantVideoToggle(currentUser.id, !videoEnabled);
     setVideoEnabled(!videoEnabled)
   }
 
