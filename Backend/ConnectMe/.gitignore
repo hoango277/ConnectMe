@@ -37,3 +37,6 @@ out/
 .vscode/
 
 .env
+
+# Ignore package-lock.json
+package-lock.json
