@@ -39,4 +39,5 @@ out/
 .env
 
 # Ignore package-lock.json
-package-lock.json
+.package-lock.json
+.idea
