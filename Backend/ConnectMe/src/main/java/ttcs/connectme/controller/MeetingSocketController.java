@@ -114,6 +114,7 @@ public class MeetingSocketController {
     @MessageMapping("/meeting.media.state")
     public void updateMediaState(@Payload MediaStateUpdate update) {
         // Broadcast the media state change to all participants
+
         messagingTemplate.convertAndSend(
                 "/topic/meeting." + update.getMeetingCode() + ".media.state",
                 update);
@@ -136,7 +137,7 @@ public class MeetingSocketController {
 
     /**
      * Handle exceptions for all message mappings
-     */
+     *      */
     @MessageExceptionHandler
     public void handleException(Exception exception) {
     }

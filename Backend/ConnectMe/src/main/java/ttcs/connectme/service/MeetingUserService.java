@@ -6,6 +6,7 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import ttcs.connectme.dto.request.MeetingUserRequest;
 import ttcs.connectme.dto.response.MeetingUserResponse;
+import ttcs.connectme.dto.webrtc.MediaStateUpdate;
 import ttcs.connectme.entity.MeetingEntity;
 import ttcs.connectme.entity.MeetingUserEntity;
 import ttcs.connectme.entity.UserEntity;
@@ -118,4 +119,21 @@ public class MeetingUserService {
         return meetingUserRepository.getAllByMeetingMeetingCodeAndIsDeletedFalse(meetingCode)
                 .stream().map(meetingUserMapper::toResponse).toList();
     }
+
+    public void updateMeetingUserMediaState(MediaStateUpdate update)
+    {
+        MeetingUserEntity meetingUser = meetingUserRepository
+                .findByMeetingMeetingCodeAndUserIdAndIsDeletedFalse(update.getMeetingCode(), update.getUserId())
+                .orElseThrow(() -> new AppException(ErrorCode.MEETING_USER_NOT_FOUND));
+
+        if(update.getMediaType().equals("video"))
+        {
+            meetingUser.setIsCameraOn(update.isEnabled());
+        }
+        else{
+            meetingUser.setIsMuted(update.isEnabled());
+        }
+        meetingUserRepository.save(meetingUser);
+    }
+
 }
