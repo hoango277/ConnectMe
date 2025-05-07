@@ -30,7 +30,7 @@ public class SecurityConfig {
     private JwtCookieFilter jwtCookieFilter;
 
     private final String[] PUBLIC_ENDPOINT_POST = {"/api/auth/**", "/api/users/**", "/api/auth/register",
-            "/api/meeting/**", "/api/upload"};
+            "/api/meeting/**", "/api/upload/**"};
     private final String[] PUBLIC_ENDPOINT_GET = {"/api/users/me", "/api/meetings/**"};
 
     @Bean

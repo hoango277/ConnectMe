@@ -687,7 +687,6 @@ const MeetingRoom = () => {
   const handleFileReceived = (fileData) => {
     // Add to received files list
     setReceivedFiles(prev => [...prev, fileData])
-
     // Add system message about received file
     const fileMessage = {
       id: Date.now(),
@@ -864,6 +863,15 @@ const MeetingRoom = () => {
     const file = e.target.files[0]
     if (!file) return
 
+    const maxSizeInBytes = 20 * 1024 * 1024;
+    if (file.size > maxSizeInBytes) {
+      alert("File is too large. Only files under 20MB can be sent.");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
+    }
+
     try {
       setFileUploading(true)
 
@@ -872,7 +880,7 @@ const MeetingRoom = () => {
 
       // Upload the file
       await webrtcService.sendFile(file, {
-        senderName: currentUser.name
+        senderName: currentUser.name || currentUser.fullName || "You"
       })
 
       // Add system message about file upload completed
@@ -1454,13 +1462,17 @@ const MeetingRoom = () => {
                           <div className="flex items-center gap-2">
                             <FileText size={16} />
                             <span className="text-sm">{message.text}</span>
-                            <button
-                              onClick={() => downloadFile(message.fileData)}
-                              className="p-1 hover:bg-background/20 rounded"
-                              title="Download file"
-                            >
-                              <Download size={14} />
-                            </button>
+                            {message.fileData && message.fileData.downloadUrl ? (
+                              <button
+                                onClick={() => window.open(message.fileData.downloadUrl, '_blank')}
+                                className="p-1 hover:bg-background/20 rounded"
+                                title={`Download ${message.fileData.fileName || 'file'}`}
+                              >
+                                <Download size={14} />
+                              </button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">(No download link)</span>
+                            )}
                           </div>
                         ) : (
                           <p className="text-sm">{message.text}</p>
