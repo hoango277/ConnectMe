@@ -7,6 +7,7 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import ttcs.connectme.dto.request.ForgotPasswordRequest;
 import ttcs.connectme.dto.request.PasswordUpdateRequest;
 import ttcs.connectme.dto.request.UserUpdateRequest;
 import ttcs.connectme.dto.response.ApiResponse;
@@ -58,5 +59,10 @@ public class UserController {
 
         userService.updatePassword(id, request);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/me/forgot-password")
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        userService.forgotPassword(request);
     }
 }

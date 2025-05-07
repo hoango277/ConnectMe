@@ -7,21 +7,20 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import ttcs.connectme.dto.request.LoginRequest;
-import ttcs.connectme.dto.request.LogoutRequest;
-import ttcs.connectme.dto.request.RefreshRequest;
-import ttcs.connectme.dto.request.UserCreateRequest;
+import ttcs.connectme.dto.request.*;
 import ttcs.connectme.dto.response.ApiResponse;
 import ttcs.connectme.dto.response.LoginResponse;
 import ttcs.connectme.dto.response.RefreshResponse;
 import ttcs.connectme.dto.response.UserResponse;
 import ttcs.connectme.service.AuthService;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor

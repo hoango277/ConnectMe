@@ -3,6 +3,7 @@ package ttcs.connectme.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import ttcs.connectme.dto.request.ForgotPasswordRequest;
 import ttcs.connectme.dto.request.PasswordUpdateRequest;
 import ttcs.connectme.dto.request.UserUpdateRequest;
 import ttcs.connectme.dto.response.UserResponse;
@@ -50,6 +51,14 @@ public class UserService {
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash()))
             throw new AppException(ErrorCode.INCORRECT_PASSWORD);
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
+
+    public void forgotPassword(ForgotPasswordRequest request) {
+        UserEntity user = userRepository.findByEmailAndIsDeletedFalse(request.getEmail())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
