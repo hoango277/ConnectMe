@@ -710,19 +710,20 @@ const MeetingRoom = () => {
   // Handle participant audio toggle
   const handleParticipantAudioToggle = (userId, enabled) => {
     setParticipants(prev =>
-      prev.map(p =>
-        p.id === userId
-          ? { ...p, audioEnabled: enabled }
-          : p
-      )
-    )
-  }
+      prev.map(p => {
+        if (p.user.id === userId) {
+          return { ...p, audioEnabled: enabled };
+        }
+        return p;
+      })
+    );
+  }  
 
   // Handle participant video toggle
   const handleParticipantVideoToggle = (userId, enabled) => {
     setParticipants(prev =>
       prev.map(p =>
-        p.id === userId
+        p.user.id === userId
           ? { ...p, videoEnabled: enabled }
           : p
       )
@@ -763,12 +764,15 @@ const MeetingRoom = () => {
   // Toggle audio
   const toggleAudio = () => {
     webrtcService.toggleAudio(!audioEnabled)
+    handleParticipantAudioToggle(currentUser.id, !audioEnabled);
     setAudioEnabled(!audioEnabled)
+    
   }
 
   // Toggle video
   const toggleVideo = () => {
     webrtcService.toggleVideo(!videoEnabled)
+    handleParticipantVideoToggle(currentUser.id, !videoEnabled);
     setVideoEnabled(!videoEnabled)
   }
 
@@ -1300,10 +1304,18 @@ const MeetingRoom = () => {
               );
             })}
 
-            {/* Screen share */}
             {isScreenSharing && (
               <div className="relative bg-muted rounded-lg overflow-hidden aspect-video col-span-full">
-                <video ref={screenShareRef} autoPlay playsInline className="w-full h-full object-contain" />
+                <video
+                  ref={el => {
+                    if (el && webrtcService.screenStream) {
+                      el.srcObject = webrtcService.screenStream;
+                    }
+                  }}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-contain"
+                />
                 <div className="absolute bottom-2 left-2 bg-background/80 px-2 py-1 rounded text-sm">Your screen</div>
               </div>
             )}
