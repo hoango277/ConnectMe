@@ -252,7 +252,7 @@ class WebRTCService {
     })
 
     // Subscribe to file transfers
-    this.stompClient.subscribe(`/topic/meeting.${meetingCode}.file`, (message) => {
+    this.stompClient.subscribe(`/topic/meeting.${meetingCode}.file.shared`, (message) => {
       const data = JSON.parse(message.body)
       if (this.callbacks.onFileReceived) {
         this.callbacks.onFileReceived(data)
@@ -1055,48 +1055,69 @@ class WebRTCService {
 
   // Send file
   sendFile(file, metadata = {}) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
         if (!this.stompClient || !this.stompClient.connected) {
-          reject(new Error("Not connected to WebSocket server"))
-          return
+          reject(new Error("Not connected to WebSocket server"));
+          return;
         }
 
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          const base64Data = e.target.result.split(',')[1]
+        const formData = new FormData();
+        formData.append("file", file);
+        console.log("231321==============metadata", metadata)
+        let fileUrl;
+        try {
+          console.log(`Uploading file ${file.name} to /api/upload/file`);
+          const response = await fetch('/api/upload/file', {
+            method: 'POST',
+            body: formData,
+          });
 
-          const fileData = {
-            fileId: Date.now(),
-            fileName: file.name,
-            fileType: file.type,
-            fileSize: file.size,
-            fileData: base64Data,
-            senderId: this.userId,
-            senderName: metadata.senderName || "Unknown",
-            timestamp: new Date().toISOString()
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error("S3 Upload API Error:", response.status, errorText);
+            throw new Error(`Upload to S3 failed: ${response.status} ${errorText}`);
           }
 
-          this.stompClient.publish({
-            destination: "/app/meeting.file",
-            body: JSON.stringify({
-              ...fileData,
-              meetingCode: this.meetingCode
-            })
-          })
-
-          resolve(fileData)
+          const responseText = await response.text();
+          if (responseText.startsWith("File uploaded successfully: ")) {
+            fileUrl = responseText.substring("File uploaded successfully: ".length).trim();
+            console.log("File uploaded to S3, URL:", fileUrl);
+          } else {
+            console.error("Unexpected response from S3 upload API:", responseText);
+            throw new Error("Unexpected response format from S3 upload API");
+          }
+        } catch (uploadError) {
+          console.error("Error during S3 upload:", uploadError);
+          reject(uploadError);
+          return;
         }
 
-        reader.onerror = (error) => {
-          reject(error)
-        }
+        const fileNotification = {
+          fileId: `${this.userId}-${Date.now()}`, 
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          downloadUrl: fileUrl, 
+          meetingCode: this.meetingCode,
+          senderId: this.userId,
+          senderName: metadata.senderName || "Unknown",
+          timestamp: new Date().toISOString()
+        };
 
-        reader.readAsDataURL(file)
+        console.log("Publishing file shared notification:", fileNotification);
+        this.stompClient.publish({
+          destination: "/app/meeting.file.shared",
+          body: JSON.stringify(fileNotification)
+        });
+
+        resolve(fileNotification);
+
       } catch (error) {
-        reject(error)
+        console.error("Error in sendFile:", error);
+        reject(error);
       }
-    })
+    });
   }
 
   // Download a received file

@@ -109,6 +109,17 @@ public class MeetingSocketController {
     }
 
     /**
+     * Handle notification for files shared via REST API (for large files)
+     */
+    @MessageMapping("/meeting.file.shared")
+    public void handleFileShared(@Payload FileSharedNotification file) {
+        // Broadcast the file shared notification to all participants in the specific
+        messagingTemplate.convertAndSend(
+                "/topic/meeting." + file.getMeetingCode() + ".file.shared",
+                file);
+    }
+
+    /**
      * Handle audio/video state changes
      */
     @MessageMapping("/meeting.media.state")
@@ -137,7 +148,7 @@ public class MeetingSocketController {
 
     /**
      * Handle exceptions for all message mappings
-     *      */
+     */
     @MessageExceptionHandler
     public void handleException(Exception exception) {
     }

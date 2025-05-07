@@ -55,8 +55,8 @@ const Login = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
       {showWelcome ? (
         <div className="flex flex-col items-center justify-center animate-fade-in">
-          <div className="w-24 h-24 mb-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-4xl font-bold">
-            CM
+          <div className="w-36 h-36 mb-6 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+            <img src={"/logo.png"} alt="ConnectMe Logo" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-3xl font-bold text-primary animate-pulse">ConnectMe</h1>
         </div>
@@ -71,8 +71,8 @@ const Login = () => {
               Quay lại
             </button>
             <div className="flex items-center">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold mr-2">
-                CM
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mr-2 overflow-hidden">
+                <img src={"/logo.png"} alt="ConnectMe Logo" className="w-full h-full object-cover" />
               </div>
               <span className="font-semibold text-lg">ConnectMe</span>
             </div>

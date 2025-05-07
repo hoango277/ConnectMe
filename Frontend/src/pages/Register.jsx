@@ -73,8 +73,8 @@ const Register = () => {
             {step === 1 ? "Quay lại" : "Quay lại bước 1"}
           </button>
           <div className="flex items-center">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold mr-2">
-              CM
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mr-2 overflow-hidden">
+              <img src={"/logo.png"} alt="ConnectMe Logo" className="w-full h-full object-cover" />
             </div>
             <span className="font-semibold text-lg">ConnectMe</span>
           </div>
