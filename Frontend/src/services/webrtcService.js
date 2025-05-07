@@ -13,6 +13,7 @@ class WebRTCService {
     this.hasJoinedMeeting = false
     this.pendingCandidates = {}
     this.remoteStreams = {} // Store remote streams by user ID
+    this.isConnecting = false
     this.callbacks = {
       onParticipantJoined: null,
       onParticipantLeft: null,
@@ -40,11 +41,21 @@ class WebRTCService {
   }
 
   // Initialize WebRTC service with SockJS and STOMP
-  initialize(userId, meetingCode) {
+  async initialize(userId, meetingCode) {
+    // Nếu đang kết nối, đợi cho đến khi kết nối xong
+    if (this.isConnecting) {
+      while (this.isConnecting) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      // Sau khi kết nối xong, trả về client hiện tại
+      return this.stompClient;
+    }
+    this.isConnecting = true;
+
     // Nếu đã được khởi tạo với cùng thông số, không cần khởi tạo lại
     if (this.stompClient && this.stompClient.connected &&
         this.userId === userId && this.meetingCode === meetingCode) {
-      console.log("WebRTC service already initialized with the same parameters");
+      this.isConnecting = false;
       return this.stompClient; // Return the existing client for chaining
     }
 
@@ -56,16 +67,14 @@ class WebRTCService {
         Object.keys(this.peerConnections).forEach(peerUserId => {
           this.closePeerConnection(peerUserId);
         });
-        
-        // Đảm bảo chỉ deactivate khi client đã kết nối
         if (this.stompClient.connected) {
           this.stompClient.deactivate();
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
-        // Đặt client về null để tránh xung đột
         this.stompClient = null;
       } catch (err) {
         console.error("Error while disconnecting STOMP client:", err);
-        // Tiếp tục với một client mới ngay cả khi có lỗi
+        await new Promise(resolve => setTimeout(resolve, 500));
         this.stompClient = null;
       }
     }
@@ -73,19 +82,14 @@ class WebRTCService {
     // Đặt lại các giá trị
     this.userId = userId;
     this.meetingCode = meetingCode;
-    // Chỉ đặt lại trạng thái tham gia nếu đang kết nối đến một cuộc họp khác
     if (this.meetingCode !== meetingCode) {
       this.hasJoinedMeeting = false;
     }
-    
-    // Làm sạch tất cả kết nối và các đối tượng khác
     this.peerConnections = {};
     this.pendingCandidates = {};
     this.remoteStreams = {};
 
     const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:8080/ws";
-    
-    // Tạo socket mới với các tùy chọn đáng tin cậy hơn
     const socket = new SockJS(socketUrl, null, {
       transports: ["websocket", "xhr-streaming", "xhr-polling"],
       transportOptions: {
@@ -95,7 +99,6 @@ class WebRTCService {
       }
     });
 
-    // Tạo client STOMP mới với cấu hình cải tiến
     this.stompClient = new Client({
       webSocketFactory: () => socket,
       debug: (str) => {
@@ -103,56 +106,63 @@ class WebRTCService {
           console.debug(str);
         }
       },
-      reconnectDelay: 2000, // Thử kết nối lại nhanh hơn
+      reconnectDelay: 2000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
-      connectionTimeout: 10000 // Thời gian chờ kết nối dài hơn
+      connectionTimeout: 10000
     });
 
-    // Xử lý sự kiện kết nối thành công
-    this.stompClient.onConnect = (frame) => {
-      console.log("Connected to STOMP broker:", frame);
-      // Thiết lập đăng ký và kết nối WebRTC
-      this.setupSubscriptions(userId, meetingCode);
-    };
-
-    // Xử lý lỗi STOMP
-    this.stompClient.onStompError = (frame) => {
-      console.error("STOMP error:", frame);
-      if (this.callbacks.onError) {
-        this.callbacks.onError({ 
-          message: "Lỗi kết nối đến máy chủ WebSocket", 
-          details: frame 
-        });
+    return new Promise((resolve, reject) => {
+      this.stompClient.onConnect = (frame) => {
+        console.log("Connected to STOMP broker:", frame);
+        this.isConnecting = false;
+        try {
+          this.setupSubscriptions(userId, meetingCode);
+          resolve(this.stompClient);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      this.stompClient.onStompError = (frame) => {
+        this.isConnecting = false;
+        console.error("STOMP error:", frame);
+        reject(new Error(frame.headers && frame.headers.message ? frame.headers.message : "STOMP error"));
+      };
+      this.stompClient.onDisconnect = () => {
+        this.isConnecting = false;
+      };
+      socket.onerror = (error) => {
+        this.isConnecting = false;
+        console.error("WebSocket Error:", error);
+        reject(error);
+      };
+      try {
+        this.stompClient.activate();
+      } catch (err) {
+        this.isConnecting = false;
+        reject(err);
       }
-    };
-
-    // Xử lý ngắt kết nối
-    this.stompClient.onDisconnect = () => {
-      console.log("Disconnected from STOMP broker");
-
-      // Nếu không cố ý ngắt kết nối (ví dụ: do lỗi mạng), thử kết nối lại
-      if (this.hasJoinedMeeting) {
-        console.log("Unexpected disconnection. Attempting to reconnect...");
-        // Đợi một lúc trước khi thử kết nối lại
-        setTimeout(() => {
-          if (this.hasJoinedMeeting && (!this.stompClient || !this.stompClient.connected)) {
-            console.log("Reconnecting to WebSocket server...");
-            // Tạo kết nối hoàn toàn mới thay vì tái sử dụng
-            this.stompClient = null;
-            this.initialize(this.userId, this.meetingCode);
-          }
-        }, 2000);
-      }
-    };
-
-    // Kích hoạt kết nối và trả về client để có thể gọi theo chuỗi
-    this.stompClient.activate();
-    return this.stompClient;
+    });
   }
 
   // Set up STOMP subscriptions
   setupSubscriptions(userId, meetingCode) {
+    if (!this.stompClient) {
+      console.error("Cannot setup subscriptions: STOMP client is null");
+      return;
+    }
+    
+    if (!this.stompClient.connected) {
+      console.warn("STOMP client not yet connected, will retry setupSubscriptions after delay");
+      setTimeout(() => {
+        if (this.stompClient && this.stompClient.connected) {
+          console.log("Retrying setupSubscriptions after delay");
+          this.setupSubscriptions(userId, meetingCode);
+        }
+      }, 2000);
+      return;
+    }
+
     // Subscribe to user joined events
     this.stompClient.subscribe(`/topic/meeting.${meetingCode}.user.joined`, async (message) => {
       const data = JSON.parse(message.body)
@@ -252,12 +262,13 @@ class WebRTCService {
     // Subscribe to media state updates
     this.stompClient.subscribe(`/topic/meeting.${meetingCode}.media.state`, (message) => {
       const data = JSON.parse(message.body)
+      console.log(data);
       if (data.userId !== userId) {
-        if (data.type === "audio") {
+        if (data.mediaType === "audio") {
           if (this.callbacks.onParticipantAudioToggle) {
             this.callbacks.onParticipantAudioToggle(data.userId, data.enabled)
           }
-        } else if (data.type === "video") {
+        } else if (data.mediaType === "video") {
           if (this.callbacks.onParticipantVideoToggle) {
             this.callbacks.onParticipantVideoToggle(data.userId, data.enabled)
           }
@@ -546,21 +557,6 @@ class WebRTCService {
         console.log("Đặt local description từ answer");
         await peerConnection.setLocalDescription(answer);
 
-        // Nếu chúng ta có local stream, tạo và gửi offer mới
-        if (this.localStream && this.stompClient && this.stompClient.connected) {
-          const offer = await this.createOffer(userId);
-          this.stompClient.publish({
-            destination: "/app/meeting.signal",
-            body: JSON.stringify({
-              type: "offer",
-              targetUserId: userId,
-              from: this.userId,
-              meetingCode: this.meetingCode,
-              payload: JSON.stringify(offer)
-            })
-          });
-        }
-
         return answer;
       } catch (err) {
         console.error("Lỗi khi đặt remote description hoặc tạo answer:", err);
@@ -592,25 +588,6 @@ class WebRTCService {
         // Đặt local description
         await newPeerConnection.setLocalDescription(answer);
 
-        // Nếu chúng ta có local stream, tạo và gửi offer mới
-        if (this.localStream && this.stompClient && this.stompClient.connected) {
-          try {
-            const offer = await this.createOffer(userId);
-            this.stompClient.publish({
-              destination: "/app/meeting.signal",
-              body: JSON.stringify({
-                type: "offer",
-                targetUserId: userId,
-                from: this.userId,
-                meetingCode: this.meetingCode,
-                payload: JSON.stringify(offer)
-              })
-            });
-          } catch (offerErr) {
-            console.error(`Lỗi tạo offer mới sau khi tạo lại kết nối: ${offerErr}`);
-          }
-        }
-
         return answer;
       }
     } catch (error) {
@@ -631,121 +608,65 @@ class WebRTCService {
       console.log("Handling answer from user:", userId);
 
       const peerConnection = this.peerConnections[userId];
-      if (peerConnection) {
-        console.log("Setting remote description from answer");
+      if (!peerConnection) {
+        console.warn(`Không tìm thấy peer connection cho người dùng ${userId}, bỏ qua answer`);
+        return;
+      }
+
+      // Kiểm tra trạng thái signaling hiện tại
+      const currentState = peerConnection.signalingState;
+      console.log(`Trạng thái signaling hiện tại cho ${userId}: ${currentState}`);
+
+      // Chỉ đặt remote description nếu chúng ta đang ở trạng thái have-local-offer
+      if (currentState === 'have-local-offer') {
+        console.log("Đặt remote description từ answer (trạng thái phù hợp)");
         try {
-          // Kiểm tra xem kết nối đang ở trạng thái phù hợp để nhận answer
-          // Answer chỉ có thể được đặt nếu chúng ta đã gửi offer (signalingState nên là 'have-local-offer')
-          if (peerConnection.signalingState === 'have-local-offer') {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-            console.log("Remote description set successfully");
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+          console.log("Remote description set successfully");
 
-            // Xử lý các ICE candidate đang chờ xử lý
-            await this.processPendingCandidates(userId);
-          } else {
-            console.warn(`Không thể đặt remote description: peer connection đang ở trạng thái ${peerConnection.signalingState}, cần 'have-local-offer'`);
-
-            // Nếu chúng ta đang ở trạng thái ổn định, có thể chúng ta đã xử lý answer này
-            // hoặc chúng ta chưa gửi offer
-            if (peerConnection.signalingState === 'stable') {
-              console.log("Kết nối đã ở trạng thái ổn định, bỏ qua answer");
-            } else {
-              // Đối với các trạng thái khác, chúng ta có thể cần tạo lại kết nối
-              console.log(`Kết nối đang ở trạng thái không mong đợi: ${peerConnection.signalingState}, tạo lại kết nối`);
-
-              // Đóng kết nối hiện tại
-              this.closePeerConnection(userId);
-              
-              // Đợi một chút trước khi tạo kết nối mới
-              await new Promise(resolve => setTimeout(resolve, 500));
-
-              // Tạo kết nối mới
-              await this.createPeerConnection(userId);
-
-              // Nếu chúng ta có local stream, tạo và gửi offer mới
-              if (this.localStream && this.stompClient && this.stompClient.connected) {
-                try {
-                  const offer = await this.createOffer(userId);
-                  this.stompClient.publish({
-                    destination: "/app/meeting.signal",
-                    body: JSON.stringify({
-                      type: "offer",
-                      targetUserId: userId,
-                      from: this.userId,
-                      meetingCode: this.meetingCode,
-                      payload: JSON.stringify(offer)
-                    })
-                  });
-                } catch (offerErr) {
-                  console.error(`Lỗi tạo offer mới sau khi tạo lại kết nối: ${offerErr}`);
-                }
-              }
-            }
-          }
+          // Xử lý các ICE candidate đang chờ xử lý
+          await this.processPendingCandidates(userId);
         } catch (err) {
-          console.error("Lỗi khi đặt remote description:", err);
-
-          // Nếu đặt remote description thất bại, kiểm tra trạng thái kết nối
-          if (peerConnection.connectionState === 'failed' ||
-              peerConnection.connectionState === 'disconnected' ||
-              peerConnection.connectionState === 'closed') {
-
-            console.log(`Trạng thái kết nối là ${peerConnection.connectionState}, tạo lại peer connection`);
-
-            // Đóng kết nối hiện tại
-            this.closePeerConnection(userId);
-            
-            // Đợi một chút trước khi tạo kết nối mới
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Tạo kết nối mới
-            await this.createPeerConnection(userId);
-
-            // Nếu chúng ta có local stream, tạo và gửi offer mới
-            if (this.localStream && this.stompClient && this.stompClient.connected) {
-              try {
-                const offer = await this.createOffer(userId);
-                this.stompClient.publish({
-                  destination: "/app/meeting.signal",
-                  body: JSON.stringify({
-                    type: "offer",
-                    targetUserId: userId,
-                    from: this.userId,
-                    meetingCode: this.meetingCode,
-                    payload: JSON.stringify(offer)
-                  })
-                });
-              } catch (offerErr) {
-                console.error(`Lỗi tạo offer mới sau khi tạo lại kết nối: ${offerErr}`);
-              }
-            }
-          }
+          console.error(`Lỗi khi đặt remote description: ${err.message}`);
+          
+          // Nếu đặt remote description thất bại, có thể trạng thái kết nối đã bị hỏng
+          // Tạo lại kết nối từ đầu
+          this.closePeerConnection(userId);
+          
+          // Đợi một chút trước khi tạo kết nối mới
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Tạo kết nối mới và gửi offer mới
+          await this.ensureConnectionAndSendOffer(userId);
         }
+      } else if (currentState === 'stable') {
+        // Nếu chúng ta đang ở trạng thái stable, có thể chúng ta đã xử lý answer này rồi
+        console.log(`Kết nối đã ở trạng thái ổn định (stable), bỏ qua answer`);
+      } else if (currentState === 'have-remote-offer') {
+        // Lỗi phổ biến: nhận được answer khi chúng ta đang ở trạng thái have-remote-offer
+        console.warn(`Không thể đặt remote description (answer) trong trạng thái have-remote-offer`);
+        console.log(`Tạo lại kết nối P2P để khắc phục xung đột trạng thái`);
+        
+        // Đóng kết nối hiện tại
+        this.closePeerConnection(userId);
+        
+        // Đợi một chút trước khi tạo kết nối mới
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Tạo kết nối mới và gửi offer mới
+        await this.ensureConnectionAndSendOffer(userId);
       } else {
-        console.warn("Không tìm thấy peer connection cho người dùng:", userId);
-
-        // Tạo kết nối mới nếu không tồn tại
-        console.log(`Tạo kết nối peer mới cho người dùng ${userId}`);
-        await this.createPeerConnection(userId);
-
-        // Nếu chúng ta có local stream, tạo và gửi offer mới
-        if (this.localStream && this.stompClient && this.stompClient.connected) {
-          try {
-            const offer = await this.createOffer(userId);
-            this.stompClient.publish({
-              destination: "/app/meeting.signal",
-              body: JSON.stringify({
-                type: "offer",
-                targetUserId: userId,
-                from: this.userId,
-                meetingCode: this.meetingCode,
-                payload: JSON.stringify(offer)
-              })
-            });
-          } catch (offerErr) {
-            console.error(`Lỗi tạo offer mới sau khi tạo lại kết nối: ${offerErr}`);
-          }
-        }
+        // Trạng thái không mong đợi khác, tạo lại kết nối
+        console.warn(`Trạng thái signaling không mong đợi: ${currentState}, tạo lại kết nối`);
+        
+        // Đóng kết nối hiện tại
+        this.closePeerConnection(userId);
+        
+        // Đợi một chút trước khi tạo kết nối mới
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Tạo kết nối mới và gửi offer mới
+        await this.ensureConnectionAndSendOffer(userId);
       }
     } catch (error) {
       console.error("Lỗi xử lý answer:", error, "cho người dùng:", userId);
@@ -1067,7 +988,7 @@ class WebRTCService {
         videoTrack.onended = () => {
           this.stopScreenSharing()
         }
-
+        console.log(this.screenStream);
         return this.screenStream
       }
     } catch (error) {
@@ -1242,27 +1163,60 @@ class WebRTCService {
 
       // Close all peer connections
       Object.keys(this.peerConnections).forEach(userId => {
-        this.closePeerConnection(userId)
-      })
+        this.closePeerConnection(userId);
+      });
 
-      // Stop local stream
+      // Dừng hoàn toàn các local stream và giải phóng tài nguyên
       if (this.localStream) {
-        this.localStream.getTracks().forEach(track => track.stop())
-        this.localStream = null
+        console.log("Stopping all local tracks before leaving meeting");
+        this.localStream.getTracks().forEach(track => {
+          console.log(`Stopping ${track.kind} track`);
+          track.stop();
+        });
+        this.localStream = null;
       }
 
-      // Stop screen sharing stream
+      // Dừng stream chia sẻ màn hình
       if (this.screenStream) {
-        this.screenStream.getTracks().forEach(track => track.stop())
-        this.screenStream = null
+        console.log("Stopping screen sharing before leaving meeting");
+        this.screenStream.getTracks().forEach(track => {
+          console.log(`Stopping ${track.kind} screen track`);
+          track.stop();
+        });
+        this.screenStream = null;
       }
 
-      // Reset join status
-      this.hasJoinedMeeting = false
+      // Đặt lại trạng thái tham gia cuộc họp
+      this.hasJoinedMeeting = false;
 
-      // Disconnect STOMP client
-      this.stompClient.deactivate()
-      this.stompClient = null
+      // Ngắt kết nối STOMP client
+      this.stompClient.deactivate();
+      this.stompClient = null;
+      
+      // Đặt lại các giá trị khác
+      this.peerConnections = {};
+      this.pendingCandidates = {};
+      this.remoteStreams = {};
+      
+      console.log("Successfully left meeting and released all media resources");
+    } else {
+      console.log("No active connection to leave");
+      
+      // Vẫn cần dừng local stream nếu còn tồn tại
+      if (this.localStream) {
+        console.log("Stopping local tracks even without active connection");
+        this.localStream.getTracks().forEach(track => {
+          console.log(`Stopping ${track.kind} track`);
+          track.stop();
+        });
+        this.localStream = null;
+      }
+      
+      if (this.screenStream) {
+        console.log("Stopping screen sharing tracks");
+        this.screenStream.getTracks().forEach(track => track.stop());
+        this.screenStream = null;
+      }
     }
   }
 

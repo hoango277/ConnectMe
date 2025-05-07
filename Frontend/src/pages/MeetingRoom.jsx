@@ -194,7 +194,7 @@ const MeetingRoom = () => {
       // Only initialize WebRTC if it hasn't been initialized already or if it's disconnected
       if (!webrtcService.stompClient || !webrtcService.stompClient.connected) {
         console.log("WebRTC not initialized or disconnected, initializing now");
-        webrtcService.initialize(currentUser.id, meetingCode);
+        await webrtcService.initialize(currentUser.id, meetingCode); // Đảm bảo chờ khởi tạo hoàn tất
       } else {
         console.log("WebRTC already initialized and connected, reusing connection");
       }
@@ -214,18 +214,34 @@ const MeetingRoom = () => {
       // Ensure we join the meeting to send signals to other participants
       if (!webrtcService.hasJoinedMeeting) {
         console.log("Sending join signal to other participants");
-        // This will trigger the server to notify other participants
-        webrtcService.stompClient.publish({
-          destination: "/app/meeting.join",
-          body: JSON.stringify({
-            userId: currentUser.id,
-            meetingCode: meetingCode
-          })
-        });
-        webrtcService.hasJoinedMeeting = true;
-
-        // Create peer connections with all existing participants using the reliable method
-        await ensureConnectionsWithAllParticipants();
+        
+        // Kiểm tra kết nối trước khi gửi thông báo join
+        if (!webrtcService.stompClient || !webrtcService.stompClient.connected) {
+          console.log("STOMP client not connected, reconnecting...");
+          await webrtcService.initialize(currentUser.id, meetingCode);
+          
+          if (!webrtcService.stompClient || !webrtcService.stompClient.connected) {
+            throw new Error("Failed to establish STOMP connection after retry");
+          }
+        }
+        
+        // Đảm bảo rằng STOMP client đã kết nối trước khi gửi tin nhắn
+        if (webrtcService.stompClient && webrtcService.stompClient.connected) {
+          // This will trigger the server to notify other participants
+          webrtcService.stompClient.publish({
+            destination: "/app/meeting.join",
+            body: JSON.stringify({
+              userId: currentUser.id,
+              meetingCode: meetingCode
+            })
+          });
+          webrtcService.hasJoinedMeeting = true;
+          
+          // Create peer connections with all existing participants using the reliable method
+          await ensureConnectionsWithAllParticipants();
+        } else {
+          throw new Error("No STOMP connection available to send join message");
+        }
       } else {
         console.log("Already joined meeting, checking connections with all participants");
         // Even if we've already joined, ensure all connections are established
@@ -233,7 +249,7 @@ const MeetingRoom = () => {
       }
     } catch (err) {
       console.error("Error initializing WebRTC:", err);
-      setError("Failed to access camera or microphone. Please check your permissions.");
+      setError(`Failed to connect to meeting: ${err.message}. Please check your network connection and try again.`);
     }
   }
 
@@ -694,19 +710,20 @@ const MeetingRoom = () => {
   // Handle participant audio toggle
   const handleParticipantAudioToggle = (userId, enabled) => {
     setParticipants(prev =>
-      prev.map(p =>
-        p.id === userId
-          ? { ...p, audioEnabled: enabled }
-          : p
-      )
-    )
-  }
+      prev.map(p => {
+        if (p.user.id === userId) {
+          return { ...p, audioEnabled: enabled };
+        }
+        return p;
+      })
+    );
+  }  
 
   // Handle participant video toggle
   const handleParticipantVideoToggle = (userId, enabled) => {
     setParticipants(prev =>
       prev.map(p =>
-        p.id === userId
+        p.user.id === userId
           ? { ...p, videoEnabled: enabled }
           : p
       )
@@ -747,12 +764,15 @@ const MeetingRoom = () => {
   // Toggle audio
   const toggleAudio = () => {
     webrtcService.toggleAudio(!audioEnabled)
+    handleParticipantAudioToggle(currentUser.id, !audioEnabled);
     setAudioEnabled(!audioEnabled)
+    
   }
 
   // Toggle video
   const toggleVideo = () => {
     webrtcService.toggleVideo(!videoEnabled)
+    handleParticipantVideoToggle(currentUser.id, !videoEnabled);
     setVideoEnabled(!videoEnabled)
   }
 
@@ -1284,10 +1304,18 @@ const MeetingRoom = () => {
               );
             })}
 
-            {/* Screen share */}
             {isScreenSharing && (
               <div className="relative bg-muted rounded-lg overflow-hidden aspect-video col-span-full">
-                <video ref={screenShareRef} autoPlay playsInline className="w-full h-full object-contain" />
+                <video
+                  ref={el => {
+                    if (el && webrtcService.screenStream) {
+                      el.srcObject = webrtcService.screenStream;
+                    }
+                  }}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-contain"
+                />
                 <div className="absolute bottom-2 left-2 bg-background/80 px-2 py-1 rounded text-sm">Your screen</div>
               </div>
             )}
