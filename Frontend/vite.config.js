@@ -1,10 +1,14 @@
 import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import path from "path"
+import { sockjsPolyfill } from "./vitePlugin"
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    sockjsPolyfill()
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -19,4 +23,8 @@ export default defineConfig({
       },
     },
   },
+  define: {
+    // Manually providing global objects needed by SockJS
+    global: 'window',
+  }
 })

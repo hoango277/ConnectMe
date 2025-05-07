@@ -37,3 +37,10 @@ out/
 .vscode/
 
 .env
+
+# Ignore package-lock.json
+.package-lock.json
+.idea
+
+src/main/resources/credentials.json
+tokens/StoredCredential
