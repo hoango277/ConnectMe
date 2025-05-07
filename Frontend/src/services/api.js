@@ -1,49 +1,63 @@
 import axios from "axios"
 
-const baseURL = import.meta.env.VITE_API_URL || "http://localhost:8080"
-
-const instance = axios.create({
-  baseURL,
+// Create axios instance with default config
+const axiosInstance = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8080",
+  withCredentials: true, // Important for handling cookies
   headers: {
     "Content-Type": "application/json",
   },
 })
 
-// Request interceptor
-instance.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token")
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => Promise.reject(error),
-)
+// Storage key for authentication status
+const AUTH_STORAGE_KEY = "auth_redirect_needed"
 
-// Response interceptor
-instance.interceptors.response.use(
+// Add response interceptor to handle errors
+axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Handle 401 Unauthorized errors
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem("token")
-      window.location.href = "/login"
+    // Lấy URL của request gây lỗi
+    const requestUrl = error.config?.url;
+    
+    // Chỉ xử lý lỗi 401 nếu không phải từ API kiểm tra profile
+    if (error.response?.status === 401 && 
+        !window.location.pathname.includes('/login') &&
+        !requestUrl.includes('/api/users/me')) {
+      // Clear user data
+      localStorage.removeItem("user")
+      
+      // Show alert and set a flag in localStorage that we need to redirect
+      alert("Your session has expired or you are not authorized. Please login again.")
+      
+      // Instead of directly using window.location.href, we'll set a flag
+      // This allows React Router to handle the navigation properly
+      localStorage.setItem(AUTH_STORAGE_KEY, "true")
+      
+      // Let the AuthContext handle the redirect with navigate
+      window.dispatchEvent(new Event("auth:expired"))
     }
     return Promise.reject(error)
-  },
+  }
 )
 
 export const api = {
-  get: (url, config = {}) => instance.get(url, config),
-  post: (url, data, config = {}) => instance.post(url, data, config),
-  put: (url, data, config = {}) => instance.put(url, data, config),
-  delete: (url, config = {}) => instance.delete(url, config),
+  get: (url, config = {}) => axiosInstance.get(url, config),
+  post: (url, data, config = {}) => axiosInstance.post(url, data, config),
+  put: (url, data, config = {}) => axiosInstance.put(url, data, config),
+  delete: (url, config = {}) => axiosInstance.delete(url, config),
   setAuthToken: (token) => {
     if (token) {
-      instance.defaults.headers.common.Authorization = `Bearer ${token}`
+      axiosInstance.defaults.headers.common.Authorization = `Bearer ${token}`
     } else {
-      delete instance.defaults.headers.common.Authorization
+      delete axiosInstance.defaults.headers.common.Authorization
     }
   },
+  // Helper to check if auth redirect is needed
+  isAuthRedirectNeeded: () => {
+    const needed = localStorage.getItem(AUTH_STORAGE_KEY) === "true"
+    if (needed) {
+      localStorage.removeItem(AUTH_STORAGE_KEY)
+    }
+    return needed
+  }
 }

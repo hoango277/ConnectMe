@@ -13,11 +13,21 @@ import org.springframework.http.HttpStatusCode;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public enum ErrorCode {
-    UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error", HttpStatus.INTERNAL_SERVER_ERROR),
-    INVALID_KEY(1000, "Key invalid", HttpStatus.BAD_REQUEST),
-    UNAUTHORIZED(1015, "You do not have permission", HttpStatus.FORBIDDEN);
+    UNCATEGORIZED_EXCEPTION("Uncategorized error", HttpStatus.INTERNAL_SERVER_ERROR),
+    INVALID_KEY("Key invalid", HttpStatus.BAD_REQUEST),
+    UNAUTHENTICATED("Unauthenticated", HttpStatus.UNAUTHORIZED),
+    UNAUTHORIZED("You do not have permission", HttpStatus.FORBIDDEN),
+    MEETING_NOT_FOUND("Meeting not found", HttpStatus.NOT_FOUND),
+    USER_NOT_FOUND("User not found", HttpStatus.NOT_FOUND),
+    USER_ALREADY_IN_MEETING("User is already in the meeting", HttpStatus.BAD_REQUEST),
+    MEETING_USER_NOT_FOUND("Cannot find user in this meeting", HttpStatus.NOT_FOUND),
+    USERNAME_EXISTED("Username existed", HttpStatus.BAD_REQUEST),
+    EMAIL_EXISTED("Email existed", HttpStatus.BAD_REQUEST),
+    INVALID_CREDENTIALS("Invalid Credentials", HttpStatus.UNAUTHORIZED),
+    INCORRECT_PASSWORD("Incorrect current password", HttpStatus.BAD_REQUEST),
+    FILE_UPLOAD_ERROR("File upload error", HttpStatus.BAD_REQUEST),
+    SEND_REMINDER_ERROR("Cannot send email reminder", HttpStatus.BAD_REQUEST);
 
-    int code;
     String message;
     HttpStatusCode statusCode;
 }

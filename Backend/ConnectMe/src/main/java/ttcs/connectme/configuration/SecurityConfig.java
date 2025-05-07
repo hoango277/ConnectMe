@@ -29,8 +29,9 @@ public class SecurityConfig {
     @Autowired
     private JwtCookieFilter jwtCookieFilter;
 
-    private final String[] PUBLIC_ENDPOINT_POST = {};
-    private final String[] PUBLIC_ENDPOINT_GET = {};
+    private final String[] PUBLIC_ENDPOINT_POST = {"/api/auth/**", "/api/users/**", "/api/auth/register",
+            "/api/meeting/**", "/api/upload/**"};
+    private final String[] PUBLIC_ENDPOINT_GET = {"/api/users/me", "/api/meetings/**"};
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
@@ -45,10 +46,11 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(request -> {
                     CorsConfiguration config = new CorsConfiguration();
-                    config.setAllowedOrigins(List.of("http://localhost:3000"));
-                    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
-                    config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+                    config.setAllowedOriginPatterns(List.of("http://localhost:3000"));
+                    config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
+                    config.setAllowedHeaders(List.of("*"));
                     config.setAllowCredentials(true);
+
                     log.info("JwtCookieFilter triggered for: {}", request.getRequestURI());
                     return config;
                 }));

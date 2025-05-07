@@ -1,109 +1,182 @@
 "use client"
 
-import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react"
+import { useNavigate, Link } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
-import { Eye, EyeOff, LogIn } from "lucide-react"
+import { ArrowLeft, User, Lock, LogIn } from "lucide-react"
 
 const Login = () => {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const { login, error } = useAuth()
   const navigate = useNavigate()
+  const { login, error: authError } = useAuth()
+  const [formData, setFormData] = useState({
+    username: "",
+    password: ""
+  })
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [showWelcome, setShowWelcome] = useState(true)
+
+  useEffect(() => {
+    // Hiệu ứng chào mừng sẽ biến mất sau 1.5 giây
+    const timer = setTimeout(() => {
+      setShowWelcome(false)
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [])
+
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
     try {
-      const success = await login(email, password)
+      const success = await login(formData.username, formData.password)
       if (success) {
         navigate("/")
+      } else {
+        setError(authError || "Đăng nhập thất bại. Vui lòng thử lại.")
       }
+    } catch (err) {
+      setError(err.response?.data?.message || "Đăng nhập thất bại. Vui lòng thử lại.")
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted">
-      <div className="max-w-md w-full p-8 bg-background rounded-lg shadow-lg">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">ConnectMe</h1>
-          <p className="text-muted-foreground mt-2">Sign in to your account</p>
-        </div>
-
-        {error && <div className="bg-destructive/10 text-destructive p-3 rounded-md mb-4">{error}</div>}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="input"
-              placeholder="name@example.com"
-              required
-            />
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+      {showWelcome ? (
+        <div className="flex flex-col items-center justify-center animate-fade-in">
+          <div className="w-36 h-36 mb-6 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+            <img src={"/logo.png"} alt="ConnectMe Logo" className="w-full h-full object-cover" />
           </div>
-
-          <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input pr-10"
-                placeholder="••••••••"
-                required
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+          <h1 className="text-3xl font-bold text-primary animate-pulse">ConnectMe</h1>
+        </div>
+      ) : (
+        <div className="w-full max-w-md animate-slide-up">
+          <div className="flex items-center justify-between mb-8">
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft size={16} className="mr-1" />
+              Quay lại
+            </button>
+            <div className="flex items-center">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mr-2 overflow-hidden">
+                <img src={"/logo.png"} alt="ConnectMe Logo" className="w-full h-full object-cover" />
+              </div>
+              <span className="font-semibold text-lg">ConnectMe</span>
             </div>
           </div>
 
-          <button
-            type="submit"
-            className="btn btn-primary w-full flex items-center justify-center gap-2"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
-            ) : (
-              <>
-                <LogIn size={18} />
-                Sign In
-              </>
-            )}
-          </button>
-        </form>
+          <div className="bg-white/80 backdrop-blur-sm border rounded-xl shadow-lg p-8">
+            <h1 className="text-2xl font-bold mb-2 text-center">Đăng nhập</h1>
+            <p className="text-center text-muted-foreground mb-6">Đăng nhập để kết nối và tham gia cuộc họp</p>
 
-        <div className="mt-6 text-center text-sm">
-          <p>
-            Don't have an account?{" "}
-            <Link to="/register" className="text-primary hover:underline">
-              Sign up
-            </Link>
-          </p>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-start">
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-2">
+                <label htmlFor="username" className="text-sm font-medium flex items-center">
+                  <User size={16} className="mr-2 text-muted-foreground" />
+                  Tên đăng nhập
+                </label>
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  value={formData.username}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                  placeholder="Nhập tên đăng nhập của bạn"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="password" className="text-sm font-medium flex items-center">
+                  <Lock size={16} className="mr-2 text-muted-foreground" />
+                  Mật khẩu
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                  placeholder="Nhập mật khẩu của bạn"
+                  required
+                />
+              </div>
+
+              <div className="pt-2">
+                <button 
+                  type="submit" 
+                  className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                  ) : (
+                    <>
+                      <LogIn size={18} className="mr-2" />
+                      Đăng nhập
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-8 text-center">
+              <p className="text-muted-foreground">
+                Chưa có tài khoản?{" "}
+                <Link to="/register" className="text-primary hover:underline font-medium">
+                  Đăng ký ngay
+                </Link>
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 text-center text-sm text-muted-foreground">
+            &copy; {new Date().getFullYear()} ConnectMe. Mọi quyền được bảo lưu.
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
 
 export default Login
+
+// Thêm CSS này vào file CSS chung hoặc trong component (nếu dùng CSS-in-JS)
+// @keyframes fade-in {
+//   from { opacity: 0; }
+//   to { opacity: 1; }
+// }
+
+// @keyframes slide-up {
+//   from { opacity: 0; transform: translateY(20px); }
+//   to { opacity: 1; transform: translateY(0); }
+// }
+
+// .animate-fade-in {
+//   animation: fade-in 0.5s forwards;
+// }
+
+// .animate-slide-up {
+//   animation: slide-up 0.5s forwards;
+// }

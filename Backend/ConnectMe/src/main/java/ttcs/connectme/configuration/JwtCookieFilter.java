@@ -63,6 +63,11 @@ public class JwtCookieFilter extends OncePerRequestFilter {
 
         filterChain.doFilter(request, response);
     }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest req) {
+        return req.getServletPath().startsWith("/ws/");
+    }
 }
 
 

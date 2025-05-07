@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from "react"
 import { api } from "../services/api"
+import { useNavigate } from "react-router-dom"
 
 const AuthContext = createContext()
 
@@ -12,73 +13,65 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const navigate = useNavigate()
+
+  // Listen for auth:expired events from the API interceptor
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setCurrentUser(null)
+      setIsAuthenticated(false)
+      
+      // Use navigate from react-router to redirect
+      navigate("/login")
+    }
+
+    window.addEventListener("auth:expired", handleAuthExpired)
+    
+    return () => {
+      window.removeEventListener("auth:expired", handleAuthExpired)
+    }
+  }, [navigate])
+
+  // Check on app startup if we need to redirect due to a previous auth error
+  useEffect(() => {
+    if (api.isAuthRedirectNeeded()) {
+      navigate("/login")
+    }
+  }, [navigate])
 
   useEffect(() => {
-    // Check if user is already logged in
-    const token = localStorage.getItem("token")
-    if (token) {
-      fetchUserProfile(token)
-    } else {
-      setLoading(false)
-    }
+    // fetch user on startup via cookie
+    fetchUserProfile()
   }, [])
 
-  const fetchUserProfile = async (token) => {
+  const fetchUserProfile = async () => {
     try {
-      api.setAuthToken(token)
       const response = await api.get("/api/users/me")
-      setCurrentUser(response.data)
+      const payload = response.data.result || response.data
+      const user = payload.user || payload
+      setCurrentUser(user)
       setIsAuthenticated(true)
     } catch (error) {
+      // no valid session cookie
       console.error("Failed to fetch user profile:", error)
-      localStorage.removeItem("token")
+      setCurrentUser(null)
+      setIsAuthenticated(false)
     } finally {
       setLoading(false)
     }
   }
 
-  const login = async (email, password) => {
+  const login = async (username, password) => {
     setError(null)
     try {
-      // For testing purposes, allow mock login when backend isn't available
-      if (import.meta.env.DEV && !import.meta.env.VITE_API_STRICT_MODE) {
-        console.warn("Using mock login in development mode")
-        const mockUser = { id: "mock-user-1", name: "Test User", email: email }
-        const mockToken = "mock-token-for-development"
-        
-        localStorage.setItem("token", mockToken)
-        api.setAuthToken(mockToken)
-        
-        setCurrentUser(mockUser)
-        setIsAuthenticated(true)
-        return true
-      }
-      
-      // Normal authentication flow
-      const response = await api.post("/api/auth/login", { email, password })
-      const { token, user } = response.data
-
-      localStorage.setItem("token", token)
-      api.setAuthToken(token)
-
+      const response = await api.post("/api/auth/login", { username, password })
+      // cookie 'jwt' is set by backend
+      const payload = response.data.result || response.data
+      const user = payload.user || payload
       setCurrentUser(user)
       setIsAuthenticated(true)
       return true
     } catch (error) {
-      // For development, when no backend is available
-      if (import.meta.env.DEV && !import.meta.env.VITE_API_STRICT_MODE) {
-        console.warn("Using mock login in development mode")
-        const mockUser = { id: "mock-user-1", name: "Test User", email: email }
-        const mockToken = "mock-token-for-development"
-        
-        localStorage.setItem("token", mockToken)
-        api.setAuthToken(mockToken)
-        
-        setCurrentUser(mockUser)
-        setIsAuthenticated(true)
-        return true
-      }
-      
       setError(error.response?.data?.message || "Login failed")
       return false
     }
@@ -87,25 +80,28 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     setError(null)
     try {
-      // For testing purposes in development
-      if (import.meta.env.DEV && !import.meta.env.VITE_API_STRICT_MODE) {
-        console.warn("Using mock registration in development mode")
-        return { success: true, message: "Registration successful" }
-      }
-      
+    
       const response = await api.post("/api/auth/register", userData)
-      return response.data
+  
+      return {
+        success: true,
+        message: response.data?.message || "Registration successful",
+      }
     } catch (error) {
       setError(error.response?.data?.message || "Registration failed")
-      throw error
+      return { success: false, message: error.response?.data?.message || "Registration failed" }
     }
-  }
+  }  
 
-  const logout = () => {
-    localStorage.removeItem("token")
-    api.setAuthToken(null)
-    setCurrentUser(null)
-    setIsAuthenticated(false)
+  const logout = async () => {
+    try {
+      await api.post("/api/auth/logout") // backend clears cookie
+    } catch {} finally {
+      setCurrentUser(null)
+      setIsAuthenticated(false)
+      // Use navigate in the context
+      navigate("/login")
+    }
   }
 
   const updateProfile = async (userData) => {

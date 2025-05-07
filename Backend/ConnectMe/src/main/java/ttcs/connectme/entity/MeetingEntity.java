@@ -8,6 +8,8 @@ import lombok.experimental.FieldDefaults;
 import ttcs.connectme.enums.MeetingStatus;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -15,10 +17,9 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Table(name = "meetings")
 public class MeetingEntity extends BaseEntity {
-
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Long id;
+    @Column(name = "meeting_code", nullable = false, unique = true, length = 10)
+    String meetingCode;
 
     @Column(name = "title", nullable = false, length = 100)
     String title;
@@ -26,21 +27,12 @@ public class MeetingEntity extends BaseEntity {
     @Column(name = "description", columnDefinition = "TEXT")
     String description;
 
-    @Column(name = "meeting_code", nullable = false, unique = true, length = 10)
-    String meetingCode;
-
     @Column(name = "password")
     String password;
 
     @ManyToOne
     @JoinColumn(name = "host_id", nullable = false)
     UserEntity host;
-
-    @Column(name = "scheduled_start")
-    LocalDateTime scheduledStart;
-
-    @Column(name = "scheduled_end")
-    LocalDateTime scheduledEnd;
 
     @Column(name = "actual_start")
     LocalDateTime actualStart;
@@ -60,4 +52,12 @@ public class MeetingEntity extends BaseEntity {
 
     @Column(name = "chat_message_count")
     Integer chatMessageCount = 0;
+
+    @ElementCollection
+    @CollectionTable(
+            name = "meeting_invited_participants",
+            joinColumns = @JoinColumn(name = "meeting_code")
+    )
+    @Column(name = "invited_participants")
+    List<String> invitedParticipants = new ArrayList<>();
 }
