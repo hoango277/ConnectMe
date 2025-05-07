@@ -35,7 +35,7 @@ const Dashboard = () => {
       setStartingMeeting(meetingCode)
       const response = await meetingService.startMeeting(meetingCode)
       console.log("Meeting started:", response)
-      
+
       // Chuyển hướng đến trang phòng họp sau khi bắt đầu thành công
       navigate(`/meeting/${meetingCode}`)
     } catch (error) {
@@ -69,7 +69,6 @@ const Dashboard = () => {
       // Sử dụng actualStart thay vì scheduledTime, và meetingStatus thay vì status
       const meetingDate = new Date(meeting.actualStart)
       const isUpcoming = meetingDate > now && meeting.meetingStatus !== "ENDED"
-      console.log(`Meeting ${meeting.title}: date=${meetingDate}, status=${meeting.meetingStatus}, isUpcoming=${isUpcoming}`)
       return isUpcoming
     })
   }
@@ -151,8 +150,8 @@ const Dashboard = () => {
                     <div className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
                       Meeting ID: {meeting.meetingCode}
                     </div>
-                    <button 
-                      onClick={() => handleStartMeeting(meeting.meetingCode)} 
+                    <button
+                      onClick={() => handleStartMeeting(meeting.meetingCode)}
                       disabled={startingMeeting === meeting.meetingCode}
                       className="text-primary hover:underline text-sm font-medium flex items-center gap-1"
                     >
