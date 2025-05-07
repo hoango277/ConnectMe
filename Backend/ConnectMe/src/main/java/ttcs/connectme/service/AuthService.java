@@ -41,14 +41,14 @@ public class AuthService {
     private final InvalidatedTokenRepository invalidatedTokenRepository;
 
     @NonFinal
-    @Value("${SIGNER_KEY}")
+    @Value("${signer_key}")
     private String signerKey;
 
     public UserResponse register(UserCreateRequest request) {
-        if (userRepository.existsByUsername(request.getUsername()))
+        if (userRepository.existsByUsernameAndIsDeletedFalse(request.getUsername()))
             throw new AppException(ErrorCode.USERNAME_EXISTED);
 
-        if (userRepository.existsByEmail(request.getEmail()))
+        if (userRepository.existsByEmailAndIsDeletedFalse(request.getEmail()))
             throw new AppException(ErrorCode.EMAIL_EXISTED);
 
         UserEntity user = userMapper.toEntity(request);
