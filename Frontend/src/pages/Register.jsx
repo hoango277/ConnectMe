@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { authService } from "../services/authService"
+import { uploadService } from "../services/uploadService"
 import { ArrowLeft, User, Mail, UserCircle, Lock, Image, UserPlus } from "lucide-react"
 
 const Register = () => {
@@ -17,6 +18,10 @@ const Register = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [step, setStep] = useState(1) // Chia quá trình đăng ký thành 2 bước
+
+  const [avatarPreview, setAvatarPreview] = useState("")
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef(null)
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -33,6 +38,50 @@ const Register = () => {
 
   const goToPreviousStep = () => {
     setStep(1)
+  }
+
+  const handleAvatarChange = async (e) => 
+  {
+    const file = e.target.files[0]
+    if (!file) 
+        return
+
+    setIsUploading(true)
+    setError(null)
+    setAvatarPreview(URL.createObjectURL(file))
+
+    try 
+    {
+      const url = await uploadService.uploadImage(file)
+      setFormData((prev) => 
+        (
+          {
+            ...prev,
+            avatar: url || "",
+          }
+        )
+      )
+    } 
+    catch (error) 
+    {
+      setError("Tải ảnh đại diện thất bại. Vui lòng thử lại.")
+      setAvatarPreview("")
+      setFormData((prev) => 
+        (
+          {
+            ...prev,
+            avatar: "",
+          }
+        )
+      )
+
+      if (fileInputRef.current)
+        fileInputRef.current.value = null
+    } 
+    finally 
+    {
+      setIsUploading(false)
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -184,17 +233,50 @@ const Register = () => {
                 <div className="space-y-2">
                   <label htmlFor="avatar" className="text-sm font-medium flex items-center">
                     <Image size={16} className="mr-2 text-muted-foreground" />
-                    URL Ảnh đại diện (Tùy chọn)
+                    Ảnh đại diện (Tùy chọn)
                   </label>
                   <input
                     id="avatar"
                     name="avatar"
-                    type="url"
-                    value={formData.avatar}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                    placeholder="https://example.com/avatar.jpg"
+                    type="file"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    onChange={handleAvatarChange}
+                    className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                   />
+                  {
+                    isUploading && 
+                    (
+                      <div className="text-xs text-muted-foreground">Đang tải ảnh lên...</div>
+                    )
+                  }
+                  {
+                    avatarPreview && 
+                    (
+                      <div className="mt-2 flex justify-center">
+                        <img
+                          src={avatarPreview}
+                          alt="Avatar preview"
+                          className="w-20 h-20 rounded-full object-cover border"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => 
+                            {
+                              setAvatarPreview("")
+                              setFormData((prev) => ({...prev, avatar: ""}))
+                              if (fileInputRef.current) 
+                                fileInputRef.current.value = null
+                            }
+                          }
+                          className="flex items-center justify-center w-5 h-5 ml-2 bg-red-100 border border-red-200 text-red-500 rounded-full hover:bg-red-200 hover:border-red-400 transition"
+                          title="Xóa ảnh"
+                        >
+                          <span className="text-sm font-bold leading-none">✖</span>
+                        </button>
+                      </div>
+                    )
+                  }
                 </div>
 
                 <div className="pt-2">
