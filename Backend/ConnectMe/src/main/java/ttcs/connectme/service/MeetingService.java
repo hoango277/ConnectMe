@@ -43,7 +43,7 @@ public class MeetingService {
         return code;
     }
 
-    public ApiResponse<MeetingResponse> createMeeting(MeetingRequest request) {
+    public MeetingResponse createMeeting(MeetingRequest request) {
         UserEntity host = userRepository.findById(request.getHostId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
@@ -55,6 +55,7 @@ public class MeetingService {
         meeting.setMeetingCode(meetingCode);
         meeting.setPassword(request.getPassword());
         meeting.setHost(host);
+        meeting.setInvitedParticipants(request.getInvitedParticipants());
         LocalDateTime startTime;
         if (request.getActualStart() != null) {
             startTime = request.getActualStart();
@@ -73,12 +74,9 @@ public class MeetingService {
 
         MeetingResponse response = meetingMapper.toResponse(savedMeeting);
         response.setHostId(request.getHostId());
+        response.setInvitedParticipants(request.getInvitedParticipants());
 
-        return ApiResponse.<MeetingResponse>builder()
-                .code(200)
-                .message("Success")
-                .result(response)
-                .build();
+        return response;
     }
 
     @Transactional(readOnly = true)

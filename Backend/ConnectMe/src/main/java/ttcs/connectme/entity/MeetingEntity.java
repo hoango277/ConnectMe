@@ -8,6 +8,8 @@ import lombok.experimental.FieldDefaults;
 import ttcs.connectme.enums.MeetingStatus;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -50,4 +52,12 @@ public class MeetingEntity extends BaseEntity {
 
     @Column(name = "chat_message_count")
     Integer chatMessageCount = 0;
+
+    @ElementCollection
+    @CollectionTable(
+            name = "meeting_invited_participants",
+            joinColumns = @JoinColumn(name = "meeting_code")
+    )
+    @Column(name = "invited_participants")
+    List<String> invitedParticipants = new ArrayList<>();
 }

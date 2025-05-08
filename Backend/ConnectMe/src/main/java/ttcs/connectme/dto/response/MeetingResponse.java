@@ -4,6 +4,7 @@ import lombok.*;
 import ttcs.connectme.enums.MeetingStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -22,4 +23,5 @@ public class MeetingResponse {
     private Integer chatMessageCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private List<String> invitedParticipants;
 }

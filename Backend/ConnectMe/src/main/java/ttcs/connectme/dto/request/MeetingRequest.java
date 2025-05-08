@@ -1,22 +1,26 @@
 package ttcs.connectme.dto.request;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 import org.antlr.v4.runtime.misc.NotNull;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class MeetingRequest {
-    private String title;
-    private String description;
-    private String password;
+    String title;
+    String description;
+    String password;
     @NotNull
-    private Long hostId;
-    private LocalDateTime actualStart;
+    Long hostId;
+    LocalDateTime actualStart;
+    @JsonProperty("invitedParticipants")
+    List<String> invitedParticipants;
 }

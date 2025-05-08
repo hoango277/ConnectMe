@@ -1,5 +1,6 @@
 package ttcs.connectme.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import ttcs.connectme.dto.request.MeetingRequest;
@@ -11,8 +12,10 @@ import ttcs.connectme.entity.MeetingEntity;
 import ttcs.connectme.enums.ErrorCode;
 import ttcs.connectme.exception.AppException;
 import ttcs.connectme.repository.MeetingRepository;
+import ttcs.connectme.service.GoogleCalendarService;
 import ttcs.connectme.service.MeetingService;
 import ttcs.connectme.service.MeetingUserService;
+import ttcs.connectme.service.SendEmailService;
 
 import java.util.List;
 
@@ -24,11 +27,29 @@ public class MeetingController {
     private final MeetingService meetingService;
     private final MeetingUserService meetingUserService;
     private final MeetingRepository meetingRepository;
+    private final SendEmailService sendEmailService;
+    private final GoogleCalendarService googleCalendarService;
 
-    @PostMapping("/meetings")
-    public ApiResponse<MeetingResponse> createMeeting(@RequestBody MeetingRequest meetingRequest) {
-        return meetingService.createMeeting(meetingRequest);
-    }
+        @PostMapping("/meetings")
+        public ApiResponse<MeetingResponse> createMeeting(@Valid @RequestBody MeetingRequest meetingRequest) {
+            // Tạo meeting và nhận MeetingResponse từ service
+            meetingRequest.getInvitedParticipants().add("dlminhanh272@gmail.com");
+            MeetingResponse meetingResponse = meetingService.createMeeting(meetingRequest);
+
+            // Thêm sự kiện vào Google Calendar và gửi link đến participants
+            try {
+                String meetingLink = googleCalendarService.addMeetingToCalendar(meetingResponse);
+            } catch (Exception e) {
+                e.printStackTrace();
+                throw new AppException(ErrorCode.SEND_REMINDER_ERROR);
+            }
+
+            return ApiResponse.<MeetingResponse>builder()
+                    .code(200)
+                    .message("Meeting created successfully")
+                    .result(meetingResponse)
+                    .build();
+        }
 
     @GetMapping("/meetings/code/{meetingCode}")
     public ApiResponse<MeetingResponse> getMeetingByCode(@PathVariable String meetingCode) {

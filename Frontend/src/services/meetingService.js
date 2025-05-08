@@ -74,7 +74,8 @@ export const meetingService = {
         description: meetingData.description,
         password: meetingData.password,
         hostId: userId,
-        actualStart: meetingData.actualStart
+        actualStart: meetingData.actualStart,
+        invitedParticipants: meetingData.invitedParticipants
       }
 
       const response = await api.post("/api/meetings", requestData)
