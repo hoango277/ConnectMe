@@ -149,6 +149,12 @@ const Login = () => {
                 </Link>
               </p>
             </div>
+
+            <div className="text-center mt-5">
+              <Link to="/forgot-password" className="text-primary hover:underline font-medium">
+                Quên mật khẩu?
+              </Link>
+            </div>
           </div>
 
           <div className="mt-8 text-center text-sm text-muted-foreground">

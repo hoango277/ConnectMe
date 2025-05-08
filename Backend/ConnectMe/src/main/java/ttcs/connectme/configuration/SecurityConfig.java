@@ -30,8 +30,9 @@ public class SecurityConfig {
     private JwtCookieFilter jwtCookieFilter;
 
     private final String[] PUBLIC_ENDPOINT_POST = {"/api/auth/**", "/api/users/**", "/api/auth/register",
-            "/api/meeting/**", "/api/upload/**"};
-    private final String[] PUBLIC_ENDPOINT_GET = {"/api/users/me", "/api/meetings/**"};
+            "/api/meeting/**", "/api/upload/**", "/api/users/me/**"};
+    private final String[] PUBLIC_ENDPOINT_GET = {"/api/users/me/**", "/api/meetings/**"};
+    private final String[] PUBLIC_ENDPOINT_PUT = {"/api/users/me/**"};
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
@@ -39,6 +40,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(request ->
                         request.requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINT_POST).permitAll()
                                 .requestMatchers(HttpMethod.GET, PUBLIC_ENDPOINT_GET).permitAll()
+                                .requestMatchers(HttpMethod.PUT, PUBLIC_ENDPOINT_PUT).permitAll()
                                 .requestMatchers("/css/**", "/js/**", "/images/**", "/ws/**").permitAll()
                                 .anyRequest().authenticated()
                 )
