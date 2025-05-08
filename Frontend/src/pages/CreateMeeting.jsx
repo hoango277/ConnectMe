@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom"
 import { meetingService } from "../services/meetingService"
 import { Calendar, Video, ArrowLeft } from "lucide-react"
 import { getCurrentUserId } from "../utils/auth"
+import dayjs from "dayjs" // Import dayjs for timezone handling
 
 const CreateMeeting = () => {
   const navigate = useNavigate()
@@ -13,7 +14,8 @@ const CreateMeeting = () => {
     description: "",
     password: "",
     hostId: null,
-    actualStart: null
+    actualStart: "",
+    invitedParticipants: []
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -32,9 +34,18 @@ const CreateMeeting = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value,
+    }))
+  }
+
+  const handleParticipantsChange = (e) => {
+    const { value } = e.target
+    const participantsArray = value.split(",").map(p => p.trim())
+    setFormData(prev => ({
+      ...prev,
+      invitedParticipants: participantsArray
     }))
   }
 
@@ -48,7 +59,11 @@ const CreateMeeting = () => {
     try {
       const meetingData = {
         ...formData,
-        actualStart: formData.actualStart ? new Date(formData.actualStart).toISOString() : null
+        // Convert the actualStart from local time to ISO string (formatted correctly)
+        actualStart: formData.actualStart
+          ? dayjs(formData.actualStart).format("YYYY-MM-DDTHH:mm:ss") // Use dayjs to handle the conversion
+          : null,
+        invitedParticipants: formData.invitedParticipants
       }
 
       const response = await meetingService.createMeeting(meetingData)
@@ -71,44 +86,32 @@ const CreateMeeting = () => {
     setIsLoading(true)
     setError(null)
 
-
-    
-
     try {
       const meetingData = {
         title: "Instant Meeting",
         description: "Instant meeting created on " + new Date().toLocaleString(),
         hostId: formData.hostId,
-        actualStart: new Date().toISOString()
+        actualStart: dayjs().format("YYYY-MM-DDTHH:mm:ss"), // Instant meeting time in correct format
+        invitedParticipants: []
       }
 
       const response = await meetingService.createMeeting(meetingData)
       if (response.code === 200) {
         try {
           const resJoin = await meetingService.joinMeeting(response.result.meetingCode)
-          
           if (resJoin.success) {
-            console.log("Successfully joined meeting, navigating to meeting room");
-            // Use replace instead of push to avoid adding to history stack
-            // This helps prevent back button issues with WebRTC connections
-            navigate(`/meeting/${resJoin.meetingCode}`, { replace: true });
+            navigate(`/meeting/${resJoin.meetingCode}`, { replace: true })
           } else {
-            console.error("Join response unsuccessful:", response);
-            throw new Error(response.message || "Failed to join meeting")
+            throw new Error(resJoin.message || "Failed to join meeting")
           }
         } catch (err) {
-          console.error("Error joining meeting:", err)
-          
-          // Extract detailed error message
-          let errorMessage = "Không thể tham gia cuộc họp. Vui lòng kiểm tra mã cuộc họp và thử lại.";
-          
+          let errorMessage = "Không thể tham gia cuộc họp. Vui lòng kiểm tra mã cuộc họp và thử lại."
           if (err.message) {
-            errorMessage = err.message;
+            errorMessage = err.message
           } else if (err.response?.data?.message) {
-            errorMessage = err.response.data.message;
+            errorMessage = err.response.data.message
           }
-          
-          setError(errorMessage);
+          setError(errorMessage)
         }
       } else {
         throw new Error(response.message || "Failed to create meeting")
@@ -152,9 +155,7 @@ const CreateMeeting = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">
-              <label htmlFor="title" className="text-sm font-medium">
-                Meeting Title *
-              </label>
+              <label htmlFor="title" className="text-sm font-medium">Meeting Title *</label>
               <input
                 id="title"
                 name="title"
@@ -168,14 +169,12 @@ const CreateMeeting = () => {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="actualStart" className="text-sm font-medium">
-                Date and Time
-              </label>
+              <label htmlFor="actualStart" className="text-sm font-medium">Date and Time</label>
               <input
                 id="actualStart"
                 name="actualStart"
                 type="datetime-local"
-                value={formData.actualStart || ""}
+                value={formData.actualStart}
                 onChange={handleChange}
                 className="input"
               />
@@ -183,9 +182,7 @@ const CreateMeeting = () => {
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="description" className="text-sm font-medium">
-              Description
-            </label>
+            <label htmlFor="description" className="text-sm font-medium">Description</label>
             <textarea
               id="description"
               name="description"
@@ -197,9 +194,7 @@ const CreateMeeting = () => {
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium">
-              Meeting Password (Optional)
-            </label>
+            <label htmlFor="password" className="text-sm font-medium">Meeting Password (Optional)</label>
             <input
               id="password"
               name="password"
@@ -208,6 +203,19 @@ const CreateMeeting = () => {
               onChange={handleChange}
               className="input"
               placeholder="Enter meeting password"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="invitedParticipants" className="text-sm font-medium">Participants (separate emails by comma)</label>
+            <input
+              id="participants"
+              name="participants"
+              type="text"
+              value={formData.invitedParticipants.join(",")}
+              onChange={handleParticipantsChange}
+              className="input"
+              placeholder="email1@example.com, email2@example.com"
             />
           </div>
 
