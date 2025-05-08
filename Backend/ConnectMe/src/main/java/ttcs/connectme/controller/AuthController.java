@@ -19,6 +19,7 @@ import ttcs.connectme.dto.response.LoginResponse;
 import ttcs.connectme.dto.response.RefreshResponse;
 import ttcs.connectme.dto.response.UserResponse;
 import ttcs.connectme.service.AuthService;
+import ttcs.connectme.service.SendEmailService;
 
 @Slf4j
 @RestController
@@ -27,6 +28,7 @@ import ttcs.connectme.service.AuthService;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AuthController {
     AuthService authService;
+    SendEmailService sendEmailService;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<UserResponse>> register(@Valid @RequestBody UserCreateRequest request) {
@@ -98,5 +100,15 @@ public class AuthController {
         return ApiResponse.<RefreshResponse>builder()
                 .result(authService.refresh(request))
                 .build();
+    }
+
+    @PostMapping("/sendOTP")
+    public String sendOTP(@Valid @RequestBody SendOtpRequest request) {
+        try {
+            return sendEmailService.sendOTP(request.getEmail());
+        } catch (Exception e) {
+            log.error(String.valueOf(e));
+            return "Error sending OTP";
+        }
     }
 }
