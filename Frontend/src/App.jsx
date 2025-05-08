@@ -11,6 +11,7 @@ import CreateMeeting from "./pages/CreateMeeting"
 import JoinMeeting from "./pages/JoinMeeting"
 import Profile from "./pages/Profile"
 import NotFound from "./pages/NotFound"
+import ForgotPassword from "./pages/ForgotPassword"
 import Layout from "./components/Layout"
 
 // Protected route component
@@ -37,6 +38,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route
         path="/"
         element={
