@@ -1,9 +1,7 @@
 package ttcs.connectme.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import lombok.experimental.FieldDefaults;
 import ttcs.connectme.enums.Role;
 
@@ -14,6 +12,10 @@ import java.time.LocalDateTime;
 @Setter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Table(name = "users")
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@ToString
 public class UserEntity extends BaseEntity {
 
     @Id
