@@ -1,2 +1,20 @@
+# Environment variables
 .env
-.ideaBackend/ConnectMe/tokens/StoredCredential
+
+# Google OAuth2 tokens
+.ideaBackend/ConnectMe/tokens/
+tokens/
+
+# IntelliJ IDEA
+.idea/
+.ideaBackend/
+
+# System files (optional)
+.DS_Store
+Thumbs.db
+
+# Node modules
+node_modules/
+
+# Package lock
+package-lock.json
