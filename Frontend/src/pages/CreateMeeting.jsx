@@ -68,7 +68,8 @@ const CreateMeeting = () => {
 
       const response = await meetingService.createMeeting(meetingData)
       if (response.code === 200) {
-        navigate(`/meeting/${response.result.meetingCode}`)
+        alert("Meeting created successfully");        
+        navigate(`/`)
       } else {
         throw new Error(response.message || "Failed to create meeting")
       }
