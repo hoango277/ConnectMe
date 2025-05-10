@@ -48,11 +48,10 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(request -> {
                     CorsConfiguration config = new CorsConfiguration();
-                    config.setAllowedOriginPatterns(List.of("http://localhost:3000"));
+                    config.setAllowedOriginPatterns(List.of("http://localhost", "https://192.168.141.100"));
                     config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
                     config.setAllowedHeaders(List.of("*"));
                     config.setAllowCredentials(true);
-
                     log.info("JwtCookieFilter triggered for: {}", request.getRequestURI());
                     return config;
                 }));
