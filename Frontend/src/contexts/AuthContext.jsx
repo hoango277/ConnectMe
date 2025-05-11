@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from "react"
 import { api } from "../services/api"
-import { useNavigate, useLocation } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 
 const AuthContext = createContext()
 
@@ -14,7 +14,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
-  const location = useLocation()
 
   // Listen for auth:expired events from the API interceptor
   useEffect(() => {
@@ -44,65 +43,6 @@ export const AuthProvider = ({ children }) => {
     // fetch user on startup via cookie
     fetchUserProfile()
   }, [])
-
-  // Hàm xử lý token từ URL sử dụng Fetch API thay vì api.js
-  const handleTokenFromUrl = async () => {
-    const searchParams = new URLSearchParams(location.search)
-    const token = searchParams.get('token')
-    
-    if (token) {
-      try {
-        // Sử dụng Fetch API thay vì axios
-        const response = await fetch("http://localhost:8080/api/auth/validate-token", {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          credentials: 'include', // Để đảm bảo cookie được gửi/nhận
-        })
-        
-        if (!response.ok) {
-          throw new Error(`Server responded with ${response.status}: ${response.statusText}`)
-        }
-        
-        const data = await response.json()
-        const payload = data.result || data
-        const user = payload.user || payload
-        
-        // Cập nhật state
-        setCurrentUser(user)
-        setIsAuthenticated(true)
-        
-        // Xóa token khỏi URL để tránh lặp lại khi refresh
-        const newUrl = window.location.pathname
-        window.history.replaceState({}, document.title, newUrl)
-        
-        // Chuyển hướng đến trang chủ
-        navigate("/")
-        
-        return true
-      } catch (error) {
-        console.error("Lỗi xác thực token:", error)
-        setCurrentUser(null)
-        setIsAuthenticated(false)
-        return false
-      } finally {
-        setLoading(false)
-      }
-    }
-    return false
-  }
-  
-  // Thêm useEffect để kiểm tra token trong URL
-  useEffect(() => {
-    // Kiểm tra token trong URL
-    if (!handleTokenFromUrl()) {
-      // Nếu không có token trong URL hoặc xác thực thất bại,
-      // thực hiện fetch profile thông thường
-      fetchUserProfile()
-    }
-  }, [location])
 
   const fetchUserProfile = async () => {
     try {
@@ -194,7 +134,6 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateProfile,
-    handleTokenFromUrl
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

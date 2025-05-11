@@ -40,7 +40,7 @@ out/
 
 # Ignore package-lock.json
 .package-lock.json
-.idea
+.idea/
 
 src/main/resources/credentials.json
 tokens/StoredCredential

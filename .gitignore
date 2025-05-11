@@ -2,6 +2,7 @@
 .env
 
 # Google OAuth2 tokens
+.idea/
 .ideaBackend/ConnectMe/tokens/
 tokens/
 

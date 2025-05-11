@@ -61,6 +61,7 @@ public class AuthController {
             throws Exception {
         LoginResponse loginResponse = authService.loginForOAuth(oAuth2User);
 
+        clearJSessionId(response);
         Cookie cookie = new Cookie("jwt", loginResponse.getToken());
         cookie.setHttpOnly(true);
         cookie.setSecure(false);
@@ -171,5 +172,12 @@ public class AuthController {
             log.error(String.valueOf(e));
             return "Error sending OTP";
         }
+    }
+
+    private void clearJSessionId(HttpServletResponse response) {
+        Cookie jsessionCookie = new Cookie("JSESSIONID", null);
+        jsessionCookie.setPath("/");
+        jsessionCookie.setMaxAge(0);
+        response.addCookie(jsessionCookie);
     }
 }
