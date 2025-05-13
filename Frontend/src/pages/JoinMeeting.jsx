@@ -4,6 +4,8 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { meetingService } from "../services/meetingService"
 import { ArrowLeft, Video } from "lucide-react"
+import dayjs from "dayjs" // Import dayjs for timezone handling
+
 
 const JoinMeeting = () => {
   const navigate = useNavigate()
@@ -23,10 +25,19 @@ const JoinMeeting = () => {
       return
     }
 
+    const meeting = await meetingService.getMeetingByCode(meetingCode);
+
+    console.log(new Date(meeting.result.actualStart))
+    if (new Date(meeting.result.actualStart) > new Date()) {
+      alert("The meeting has not started yet. Please wait.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       console.log("Attempting to join meeting with code:", meetingCode);
       const response = await meetingService.joinMeeting(meetingCode, displayName)
-      
+
       if (response.success) {
         console.log("Successfully joined meeting, navigating to meeting room");
         // Use replace instead of push to avoid adding to history stack
@@ -38,16 +49,16 @@ const JoinMeeting = () => {
       }
     } catch (err) {
       console.error("Error joining meeting:", err)
-      
+
       // Extract detailed error message
       let errorMessage = "Không thể tham gia cuộc họp. Vui lòng kiểm tra mã cuộc họp và thử lại.";
-      
+
       if (err.message) {
         errorMessage = err.message;
       } else if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
       }
-      
+
       setError(errorMessage);
     } finally {
       setIsLoading(false)

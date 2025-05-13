@@ -66,9 +66,15 @@ const CreateMeeting = () => {
         invitedParticipants: formData.invitedParticipants
       }
 
+      if (dayjs(formData.actualStart).isBefore(dayjs())) {
+        alert("The selected meeting start time is invalid. Please choose a different time slot.");
+        return;
+      }
+
       const response = await meetingService.createMeeting(meetingData)
       if (response.code === 200) {
-        navigate(`/meeting/${response.result.meetingCode}`)
+        alert("Meeting created successfully");        
+        navigate(`/`)
       } else {
         throw new Error(response.message || "Failed to create meeting")
       }
