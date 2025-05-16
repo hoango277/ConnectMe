@@ -69,5 +69,3 @@ public class JwtCookieFilter extends OncePerRequestFilter {
         return req.getServletPath().startsWith("/ws/");
     }
 }
-
-
