@@ -37,15 +37,12 @@ services:
     build:
       context: ../Frontend
     container_name: connectme-frontend
-    environment:
-      VITE_API_URL: http://192.168.141.100:8080
-    volumes:
-       - /projects/ConnectMe/Frontend/server.crt:/etc/nginx/ssl/server.crt:ro
-       - /projects/ConnectMe/Frontend/server.key:/etc/nginx/ssl/server.key:ro
-
     ports:
       - "80:80"
       - "443:443"
+    volumes:
+    - /etc/letsencrypt/live/hoangotech.id.vn/fullchain.pem:/etc/nginx/ssl/fullchain.pem:ro
+    - /etc/letsencrypt/live/hoangotech.id.vn/privkey.pem:/etc/nginx/ssl/privkey.pem:ro
 
 # ← This `volumes:` block must be at the root, alongside `services:`
 volumes:
