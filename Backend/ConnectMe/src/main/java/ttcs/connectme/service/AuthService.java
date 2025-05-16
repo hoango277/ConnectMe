@@ -5,11 +5,13 @@ import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import ttcs.connectme.dto.request.LoginRequest;
 import ttcs.connectme.dto.request.LogoutRequest;
@@ -26,9 +28,12 @@ import ttcs.connectme.mapper.UserMapper;
 import ttcs.connectme.repository.InvalidatedTokenRepository;
 import ttcs.connectme.repository.UserRepository;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -58,6 +63,21 @@ public class AuthService {
         return userMapper.toResponse(userCreate);
     }
 
+    public LoginResponse validateToken(String userName) {
+        UserEntity user = userRepository.findByUsernameAndIsDeleted(userName, false)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_CREDENTIALS));
+
+        String token = generateToken(user);
+        LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo();
+        userInfo.setId(user.getId());
+        userInfo.setName(user.getFullName());
+        userInfo.setEmail(user.getEmail());
+        return LoginResponse.builder()
+                .token(token)
+                .user(userInfo)
+                .build();
+    }
+
     public LoginResponse authenticate(LoginRequest request) {
         UserEntity user = userRepository.findByUsernameAndIsDeleted(request.getUsername(), false)
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_CREDENTIALS));
@@ -70,6 +90,45 @@ public class AuthService {
         userInfo.setId(user.getId());
         userInfo.setName(user.getFullName());
         userInfo.setEmail(user.getEmail());
+        return LoginResponse.builder()
+                .token(token)
+                .user(userInfo)
+                .build();
+    }
+
+    public LoginResponse loginForOAuth(OAuth2User oAuth2User) throws Exception {
+
+        Map<String, Object> attributes = oAuth2User.getAttributes();
+
+        String email = attributes.getOrDefault("email", "").toString();
+        String name = attributes.getOrDefault("name", "").toString();
+
+        String username = email.split("@")[0];
+
+        Optional<UserEntity> userOptional = userRepository.findByEmailAndIsDeletedFalse(email);
+        UserEntity user;
+
+        if (userOptional.isPresent()) {
+            user = userOptional.get();
+        } else {
+            user = UserEntity.builder()
+                    .email(email)
+                    .fullName(name)
+                    .username(username)
+                    .passwordHash("")
+                    .isActive(true)
+                    .build();
+            user = userRepository.save(user);
+        }
+
+        System.out.println(user.toString());
+        String token = generateToken(user);
+
+        LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo();
+        userInfo.setId(user.getId());
+        userInfo.setName(user.getFullName());
+        userInfo.setEmail(user.getEmail());
+
         return LoginResponse.builder()
                 .token(token)
                 .user(userInfo)
@@ -113,8 +172,7 @@ public class AuthService {
                 .issuer("ConnectMe")
                 .issueTime(new Date())
                 .expirationTime(new Date(
-                        Instant.now().plus(1, ChronoUnit.HOURS).toEpochMilli()
-                ))
+                        Instant.now().plus(1, ChronoUnit.HOURS).toEpochMilli()))
                 .jwtID(UUID.randomUUID().toString())
                 .build();
 
@@ -125,7 +183,7 @@ public class AuthService {
             object.sign(new MACSigner(signerKey.getBytes()));
             return object.serialize();
         } catch (Exception e) {
-            log.error ("Cannot create token", e);
+            log.error("Cannot create token", e);
             throw new RuntimeException(e);
         }
     }
@@ -144,4 +202,21 @@ public class AuthService {
 
         return signedJWT;
     }
+
+    public Long extractUserIdFromToken(String token) {
+        try {
+            JWSVerifier verifier = new MACVerifier(signerKey);
+            SignedJWT signedJWT = SignedJWT.parse(token);
+
+            if (!signedJWT.verify(verifier)) {
+                throw new RuntimeException("Token signature verification failed");
+            }
+
+            String userIdStr = signedJWT.getJWTClaimsSet().getSubject();
+            return Long.parseLong(userIdStr);
+        } catch (Exception e) {
+            throw new RuntimeException("Error extracting user ID from token", e);
+        }
+    }
+
 }

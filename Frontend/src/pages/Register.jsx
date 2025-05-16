@@ -17,7 +17,6 @@ const Register = () => {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [step, setStep] = useState(1) // Chia quá trình đăng ký thành 2 bước
 
   const [avatarPreview, setAvatarPreview] = useState("")
   const [isUploading, setIsUploading] = useState(false)
@@ -29,15 +28,6 @@ const Register = () => {
       ...prev,
       [name]: value,
     }))
-  }
-
-  const goToNextStep = (e) => {
-    e.preventDefault()
-    setStep(2)
-  }
-
-  const goToPreviousStep = () => {
-    setStep(1)
   }
 
   const handleAvatarChange = async (e) => 
@@ -115,11 +105,11 @@ const Register = () => {
       <div className="w-full max-w-md">
         <div className="flex items-center justify-between mb-8">
           <button
-            onClick={() => step === 1 ? navigate(-1) : goToPreviousStep()}
+            onClick={() => navigate(-1)}
             className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft size={16} className="mr-1" />
-            {step === 1 ? "Quay lại" : "Quay lại bước 1"}
+            Quay lại
           </button>
           <div className="flex items-center">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mr-2 overflow-hidden">
@@ -130,13 +120,7 @@ const Register = () => {
         </div>
 
         <div className="bg-white/80 backdrop-blur-sm border rounded-xl shadow-lg p-8">
-          <h1 className="text-2xl font-bold mb-2 text-center">Đăng ký tài khoản</h1>
-
-          {/* Hiển thị tiến trình đăng ký */}
-          <div className="flex items-center justify-center mb-6">
-            <div className={`w-3 h-3 rounded-full ${step === 1 ? 'bg-primary' : 'bg-primary/40'} mr-1`}></div>
-            <div className={`w-3 h-3 rounded-full ${step === 2 ? 'bg-primary' : 'bg-primary/40'}`}></div>
-          </div>
+          <h1 className="text-2xl font-bold mb-6 text-center">Đăng ký tài khoản</h1>
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-start">
@@ -144,159 +128,142 @@ const Register = () => {
             </div>
           )}
 
-          <form onSubmit={step === 1 ? goToNextStep : handleSubmit} className="space-y-5">
-            {step === 1 ? (
-              // Bước 1: Thông tin cơ bản
-              <>
-                <div className="space-y-2">
-                  <label htmlFor="username" className="text-sm font-medium flex items-center">
-                    <User size={16} className="mr-2 text-muted-foreground" />
-                    Tên đăng nhập
-                  </label>
-                  <input
-                    id="username"
-                    name="username"
-                    type="text"
-                    value={formData.username}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                    placeholder="Nhập tên đăng nhập của bạn"
-                    required
-                  />
-                </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="username" className="text-sm font-medium flex items-center">
+                <User size={16} className="mr-2 text-muted-foreground" />
+                Tên đăng nhập
+              </label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                value={formData.username}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                placeholder="Nhập tên đăng nhập của bạn"
+                required
+              />
+            </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium flex items-center">
-                    <Mail size={16} className="mr-2 text-muted-foreground" />
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                    placeholder="Nhập địa chỉ email của bạn"
-                    required
-                  />
-                </div>
+            <div className="space-y-2">
+              <label htmlFor="email" className="text-sm font-medium flex items-center">
+                <Mail size={16} className="mr-2 text-muted-foreground" />
+                Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                placeholder="Nhập địa chỉ email của bạn"
+                required
+              />
+            </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="fullName" className="text-sm font-medium flex items-center">
-                    <UserCircle size={16} className="mr-2 text-muted-foreground" />
-                    Họ và tên
-                  </label>
-                  <input
-                    id="fullName"
-                    name="fullName"
-                    type="text"
-                    value={formData.fullName}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                    placeholder="Nhập họ và tên đầy đủ của bạn"
-                    required
-                  />
-                </div>
+            <div className="space-y-2">
+              <label htmlFor="fullName" className="text-sm font-medium flex items-center">
+                <UserCircle size={16} className="mr-2 text-muted-foreground" />
+                Họ và tên
+              </label>
+              <input
+                id="fullName"
+                name="fullName"
+                type="text"
+                value={formData.fullName}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                placeholder="Nhập họ và tên đầy đủ của bạn"
+                required
+              />
+            </div>
 
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
-                  >
-                    Tiếp tục
-                  </button>
-                </div>
-              </>
-            ) : (
-              // Bước 2: Mật khẩu và avatar
-              <>
-                <div className="space-y-2">
-                  <label htmlFor="password" className="text-sm font-medium flex items-center">
-                    <Lock size={16} className="mr-2 text-muted-foreground" />
-                    Mật khẩu
-                  </label>
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                    placeholder="Tạo mật khẩu của bạn"
-                    required
-                    minLength={8}
-                  />
-                  <p className="text-xs text-muted-foreground">Mật khẩu phải có ít nhất 8 ký tự</p>
-                </div>
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium flex items-center">
+                <Lock size={16} className="mr-2 text-muted-foreground" />
+                Mật khẩu
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                placeholder="Tạo mật khẩu của bạn"
+                required
+                minLength={8}
+              />
+              <p className="text-xs text-muted-foreground">Mật khẩu phải có ít nhất 8 ký tự</p>
+            </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="avatar" className="text-sm font-medium flex items-center">
-                    <Image size={16} className="mr-2 text-muted-foreground" />
-                    Ảnh đại diện (Tùy chọn)
-                  </label>
-                  <input
-                    id="avatar"
-                    name="avatar"
-                    type="file"
-                    accept="image/*"
-                    ref={fileInputRef}
-                    onChange={handleAvatarChange}
-                    className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                  />
-                  {
-                    isUploading && 
-                    (
-                      <div className="text-xs text-muted-foreground">Đang tải ảnh lên...</div>
-                    )
-                  }
-                  {
-                    avatarPreview && 
-                    (
-                      <div className="mt-2 flex justify-center">
-                        <img
-                          src={avatarPreview}
-                          alt="Avatar preview"
-                          className="w-20 h-20 rounded-full object-cover border"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => 
-                            {
-                              setAvatarPreview("")
-                              setFormData((prev) => ({...prev, avatar: ""}))
-                              if (fileInputRef.current) 
-                                fileInputRef.current.value = null
-                            }
-                          }
-                          className="flex items-center justify-center w-5 h-5 ml-2 bg-red-100 border border-red-200 text-red-500 rounded-full hover:bg-red-200 hover:border-red-400 transition"
-                          title="Xóa ảnh"
-                        >
-                          <span className="text-sm font-bold leading-none">✖</span>
-                        </button>
-                      </div>
-                    )
-                  }
-                </div>
+            <div className="space-y-2">
+              <label htmlFor="avatar" className="text-sm font-medium flex items-center">
+                <Image size={16} className="mr-2 text-muted-foreground" />
+                Ảnh đại diện (Tùy chọn)
+              </label>
+              <input
+                id="avatar"
+                name="avatar"
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handleAvatarChange}
+                className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+              />
+              {
+                isUploading && 
+                (
+                  <div className="text-xs text-muted-foreground">Đang tải ảnh lên...</div>
+                )
+              }
+              {
+                avatarPreview && 
+                (
+                  <div className="mt-2 flex justify-center">
+                    <img
+                      src={avatarPreview}
+                      alt="Avatar preview"
+                      className="w-20 h-20 rounded-full object-cover border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => 
+                        {
+                          setAvatarPreview("")
+                          setFormData((prev) => ({...prev, avatar: ""}))
+                          if (fileInputRef.current) 
+                            fileInputRef.current.value = null
+                        }
+                      }
+                      className="flex items-center justify-center w-5 h-5 ml-2 bg-red-100 border border-red-200 text-red-500 rounded-full hover:bg-red-200 hover:border-red-400 transition"
+                      title="Xóa ảnh"
+                    >
+                      <span className="text-sm font-bold leading-none">✖</span>
+                    </button>
+                  </div>
+                )
+              }
+            </div>
 
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
-                    ) : (
-                      <>
-                        <UserPlus size={18} className="mr-2" />
-                        Hoàn tất đăng ký
-                      </>
-                    )}
-                  </button>
-                </div>
-              </>
-            )}
+            <div className="pt-4">
+              <button
+                type="submit"
+                className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                ) : (
+                  <>
+                    <UserPlus size={18} className="mr-2" />
+                    Đăng ký tài khoản
+                  </>
+                )}
+              </button>
+            </div>
           </form>
 
           <div className="mt-8 text-center">

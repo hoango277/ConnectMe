@@ -1,2 +1,50 @@
+version: '3.8'
+
 services:
-  
+  db:
+    image: mysql:8.0
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: mydatabase
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_USER: myuser
+      MYSQL_PASSWORD: 123456
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  backend:
+    build:
+      context: ../Backend/ConnectMe
+      dockerfile: Dockerfile
+    container_name: connectme-backend
+    depends_on:
+      - db
+    environment:
+      DB_URL: jdbc:mysql://db:3306/connectme
+      DB_USERNAME: root
+      DB_PASSWORD: 123456
+      SERVER_PORT: 8080
+      SIGNER_KEY: YD8HzTlo8PGQ4jbvy8JzRWDEPHj3ESBodMOy2VN18m34naEMGKl3PvThviChOLfY
+      JAVA_TOOL_OPTIONS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+    ports:
+      - "8080:8080"
+      - "5005:5005"
+
+  frontend:
+    build:
+      context: ../Frontend
+    container_name: connectme-frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+    - /etc/letsencrypt/live/hoangotech.id.vn/fullchain.pem:/etc/nginx/ssl/fullchain.pem:ro
+    - /etc/letsencrypt/live/hoangotech.id.vn/privkey.pem:/etc/nginx/ssl/privkey.pem:ro
+
+# ← This `volumes:` block must be at the root, alongside `services:`
+volumes:
+  db_data:
+

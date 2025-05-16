@@ -34,6 +34,7 @@ public class UserService {
         String username = request.getUsername();
         String email = request.getEmail();
 
+
         if (username != null && !username.equals(user.getUsername()) && userRepository.existsByUsernameAndIsDeletedFalse(username))
             throw new AppException(ErrorCode.USERNAME_EXISTED);
 

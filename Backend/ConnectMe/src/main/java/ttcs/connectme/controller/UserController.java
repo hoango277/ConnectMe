@@ -7,11 +7,13 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import ttcs.connectme.dto.request.ForgotPasswordRequest;
 import ttcs.connectme.dto.request.PasswordUpdateRequest;
 import ttcs.connectme.dto.request.UserUpdateRequest;
 import ttcs.connectme.dto.response.ApiResponse;
 import ttcs.connectme.dto.response.UserResponse;
+import ttcs.connectme.service.UploadService;
 import ttcs.connectme.service.UserService;
 
 @RestController
@@ -20,6 +22,7 @@ import ttcs.connectme.service.UserService;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class UserController {
     UserService userService;
+    private final UploadService uploadService;
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser(Authentication auth) {
@@ -34,12 +37,15 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/me")
+    @PutMapping("/update-me")
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(
-            @Valid @RequestBody UserUpdateRequest request,
+            @RequestPart(value = "file", required = false) MultipartFile avatar,
+            @RequestPart("user") UserUpdateRequest request,
             Authentication auth
-    ) {
+    ) throws Exception {
         Long id = Long.parseLong(auth.getName());
+        String avatarGet = uploadService.uploadFile(avatar);
+        request.setAvatar(avatarGet);
 
         ApiResponse<UserResponse> response = ApiResponse.<UserResponse>builder()
                 .code(0)
