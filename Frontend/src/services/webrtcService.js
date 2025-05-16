@@ -303,18 +303,23 @@ class WebRTCService {
 
       // Cấu hình các máy chủ ICE - bao gồm nhiều máy chủ hơn để tăng khả năng kết nối
       const configuration = {
-        iceServers: [
-          { urls: "stun:stun.l.google.com:19302" },
-          { urls: "stun:stun1.l.google.com:19302" },
-          { urls: "stun:stun2.l.google.com:19302" },
-          { urls: "stun:stun3.l.google.com:19302" },
-          { urls: "stun:stun4.l.google.com:19302" },
-          { urls: "stun:stun.stunprotocol.org:3478" }
-        ],
-        iceTransportPolicy: "all",
-        iceCandidatePoolSize: 10,
-        bundlePolicy: "max-bundle"
-      };
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
+        { urls: "stun:stun3.l.google.com:19302" },
+        { urls: "stun:stun4.l.google.com:19302" },
+        { urls: "stun:stun.stunprotocol.org:3478" },
+        {
+          urls: "turns:hoangotech.id.vn:5349", // hoặc turn: nếu dùng không bảo mật
+          username: "webrtcuser",
+          credential: "password123"
+        }
+      ],
+      iceTransportPolicy: "all",
+      iceCandidatePoolSize: 10,
+      bundlePolicy: "max-bundle"
+    };
 
       // Tạo kết nối mới
       const peerConnection = new RTCPeerConnection(configuration);
