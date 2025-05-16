@@ -19,6 +19,6 @@ public class UserUpdateRequest {
 
     @NotBlank
     String fullName;
-
     String avatar;
+
 }

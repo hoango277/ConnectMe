@@ -1,30 +1,66 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
 import { ArrowLeft, Save } from "lucide-react"
+import { api } from "../services/api"
 
 const Profile = () => {
   const navigate = useNavigate()
-  const { currentUser, updateProfile, logout } = useAuth()
+  const { logout } = useAuth()
 
+  // State cho user info từ API /api/users/me
+  const [userInfo, setUserInfo] = useState(null)
+  const [userInfoLoading, setUserInfoLoading] = useState(true)
+  const [userInfoError, setUserInfoError] = useState(null)
+
+  // Form state
   const [formData, setFormData] = useState({
-    name: currentUser?.name || "",
-    email: currentUser?.email || "",
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
+    username: "",
+    email: "",
+    fullName: "",
+    avatar: ""
   })
-
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
-  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const fileInputRef = useRef()
+
+  useEffect(() => {
+    setUserInfoLoading(true)
+    api.get("/api/users/me")
+      .then((res) => {
+        const data = res.data;
+        setUserInfo(data.result)
+        setFormData({
+          username: data.result.username || "",
+          email: data.result.email || "",
+          fullName: data.result.fullName || "",
+          avatar: data.result.avatar || ""
+        })
+        setAvatarPreview(data.result.avatar || "")
+        setUserInfoLoading(false)
+      })
+      .catch((err) => {
+        setUserInfoError("Không thể tải thông tin user")
+        setUserInfoLoading(false)
+      })
+  }, [])
 
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      setAvatarFile(file)
+      setAvatarPreview(URL.createObjectURL(file))
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -32,49 +68,40 @@ const Profile = () => {
     setIsLoading(true)
     setError(null)
     setSuccess(null)
-
     try {
-      // Validate password fields if changing password
-      if (isChangingPassword) {
-        if (!formData.currentPassword) {
-          throw new Error("Current password is required")
-        }
-
-        if (formData.newPassword !== formData.confirmPassword) {
-          throw new Error("New passwords do not match")
-        }
-
-        if (formData.newPassword && formData.newPassword.length < 6) {
-          throw new Error("New password must be at least 6 characters")
-        }
-      }
-
-      // Prepare data for update
-      const updateData = {
-        name: formData.name,
-      }
-
-      if (isChangingPassword) {
-        updateData.currentPassword = formData.currentPassword
-        updateData.newPassword = formData.newPassword
-      }
-
-      await updateProfile(updateData)
-      setSuccess("Profile updated successfully")
-
-      // Reset password fields
-      if (isChangingPassword) {
-        setFormData((prev) => ({
-          ...prev,
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: "",
-        }))
-        setIsChangingPassword(false)
+      // Chuẩn bị form data
+      const form = new FormData()
+      form.append("file", avatarFile || new Blob([])) // Nếu không chọn file mới, gửi file rỗng
+      form.append("user", JSON.stringify({
+        username: formData.username,
+        email: formData.email,
+        fullName: formData.fullName,
+        avatar: ""
+      }))
+      const res = await api.put("/api/users/update-me", form, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        },
+        withCredentials: true
+      })
+      const data = res.data
+      if (data.code === 0) {
+        setSuccess("Cập nhật thành công!")
+        setUserInfo(data.result)
+        setFormData({
+          username: data.result.username || "",
+          email: data.result.email || "",
+          fullName: data.result.fullName || "",
+          avatar: data.result.avatar || ""
+        })
+        setAvatarPreview(data.result.avatar || "")
+        setAvatarFile(null)
+        if (fileInputRef.current) fileInputRef.current.value = ""
+      } else {
+        setError(data.message || "Cập nhật thất bại")
       }
     } catch (err) {
-      console.error("Error updating profile:", err)
-      setError(err.message || "Failed to update profile")
+      setError("Cập nhật thất bại")
     } finally {
       setIsLoading(false)
     }
@@ -84,6 +111,9 @@ const Profile = () => {
     logout()
     navigate("/login")
   }
+
+  if (userInfoLoading) return <div className="p-8">Đang tải...</div>
+  if (userInfoError) return <div className="p-8 text-red-500">{userInfoError}</div>
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -104,31 +134,24 @@ const Profile = () => {
         </div>
 
         {error && <div className="bg-destructive/10 text-destructive p-4 rounded-md mb-6">{error}</div>}
-
         {success && <div className="bg-green-100 text-green-800 p-4 rounded-md mb-6">{success}</div>}
 
         <div className="bg-background border rounded-lg shadow-sm overflow-hidden">
           <div className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <label htmlFor="name" className="text-sm font-medium">
-                  Full Name
-                </label>
+                <label htmlFor="username" className="text-sm font-medium">Username</label>
                 <input
-                  id="name"
-                  name="name"
+                  id="username"
+                  name="username"
                   type="text"
-                  value={formData.name}
-                  onChange={handleChange}
+                  value={formData.username}
                   className="input"
-                  required
+                  disabled
                 />
               </div>
-
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </label>
+                <label htmlFor="email" className="text-sm font-medium">Email</label>
                 <input
                   id="email"
                   name="email"
@@ -136,78 +159,46 @@ const Profile = () => {
                   value={formData.email}
                   onChange={handleChange}
                   className="input"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="fullName" className="text-sm font-medium">Full Name</label>
+                <input
+                  id="fullName"
+                  name="fullName"
+                  type="text"
+                  value={formData.fullName}
+                  onChange={handleChange}
+                  className="input"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Avatar</label>
+                <div className="flex items-center gap-4">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="avatar" width={60} height={60} style={{borderRadius: '50%', objectFit: 'cover', border: '1px solid #eee'}} />
+                  ) : (
+                    <span>Chưa có</span>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    ref={fileInputRef}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Trạng thái</label>
+                <input
+                  type="text"
+                  value={userInfo.isActive ? "Đang hoạt động" : "Không hoạt động"}
+                  className="input"
                   disabled
                 />
-                <p className="text-xs text-muted-foreground">Email cannot be changed</p>
               </div>
-
-              {!isChangingPassword ? (
-                <button
-                  type="button"
-                  onClick={() => setIsChangingPassword(true)}
-                  className="text-primary hover:underline text-sm"
-                >
-                  Change password
-                </button>
-              ) : (
-                <div className="space-y-4 border-t pt-4">
-                  <h3 className="font-medium">Change Password</h3>
-
-                  <div className="space-y-2">
-                    <label htmlFor="currentPassword" className="text-sm font-medium">
-                      Current Password
-                    </label>
-                    <input
-                      id="currentPassword"
-                      name="currentPassword"
-                      type="password"
-                      value={formData.currentPassword}
-                      onChange={handleChange}
-                      className="input"
-                      required={isChangingPassword}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="newPassword" className="text-sm font-medium">
-                      New Password
-                    </label>
-                    <input
-                      id="newPassword"
-                      name="newPassword"
-                      type="password"
-                      value={formData.newPassword}
-                      onChange={handleChange}
-                      className="input"
-                      required={isChangingPassword}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="confirmPassword" className="text-sm font-medium">
-                      Confirm New Password
-                    </label>
-                    <input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      className="input"
-                      required={isChangingPassword}
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsChangingPassword(false)}
-                    className="text-muted-foreground hover:underline text-sm"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-
               <div className="flex justify-end">
                 <button type="submit" className="btn btn-primary flex items-center gap-2" disabled={isLoading}>
                   {isLoading ? (
@@ -215,14 +206,13 @@ const Profile = () => {
                   ) : (
                     <>
                       <Save size={18} />
-                      Save Changes
+                      Lưu thay đổi
                     </>
                   )}
                 </button>
               </div>
             </form>
           </div>
-
           <div className="bg-muted p-6 border-t">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between">
               <div>
