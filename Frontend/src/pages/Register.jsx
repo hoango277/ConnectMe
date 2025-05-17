@@ -6,7 +6,8 @@ import { authService } from "../services/authService"
 import { uploadService } from "../services/uploadService"
 import { ArrowLeft, User, Mail, UserCircle, Lock, Image, UserPlus } from "lucide-react"
 
-const Register = () => {
+const Register = () =>
+{
   const navigate = useNavigate()
   const [formData, setFormData] = useState({
     username: "",
@@ -22,7 +23,8 @@ const Register = () => {
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef(null)
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
+  {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
@@ -33,55 +35,56 @@ const Register = () => {
   const handleAvatarChange = async (e) => 
   {
     const file = e.target.files[0]
-    if (!file) 
-        return
+    if (!file)
+      return
 
     setIsUploading(true)
     setError(null)
-    setAvatarPreview(URL.createObjectURL(file))
 
     try 
     {
       const url = await uploadService.uploadImage(file)
-      setFormData((prev) => 
-        (
-          {
-            ...prev,
-            avatar: url.result || "",
-          }
-        )
-      )
-    } 
+      setFormData((prev) =>
+      (
+        {
+          ...prev,
+          avatar: url.result || "",
+        }
+      ))
+      setAvatarPreview(url.result || "")
+    }
     catch (error) 
     {
       setError("Tải ảnh đại diện thất bại. Vui lòng thử lại.")
       setAvatarPreview("")
-      setFormData((prev) => 
-        (
-          {
-            ...prev,
-            avatar: "",
-          }
-        )
-      )
+      setFormData((prev) =>
+      (
+        {
+          ...prev,
+          avatar: "",
+        }
+      ))
 
       if (fileInputRef.current)
         fileInputRef.current.value = null
-    } 
+    }
     finally 
     {
       setIsUploading(false)
     }
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e) =>
+  {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
 
-    try {
+    try
+    {
       const response = await authService.register(formData)
-      if (response.code === 0) {
+      if (response.code === 0)
+      {
         // Chuyển hướng đến trang đăng nhập sau khi đăng ký thành công
         navigate("/login", {
           state: {
@@ -89,13 +92,16 @@ const Register = () => {
             username: formData.username
           }
         })
-      } else {
+      } else
+      {
         setError(response.message || "Đăng ký thất bại. Vui lòng thử lại.")
       }
-    } catch (err) {
+    } catch (err)
+    {
       console.error("Registration error:", err)
       setError(err.response?.data?.message || "Đăng ký thất bại. Vui lòng thử lại.")
-    } finally {
+    } finally
+    {
       setIsLoading(false)
     }
   }
@@ -105,15 +111,15 @@ const Register = () => {
       <div className="w-full max-w-md">
         <div className="flex items-center justify-between mb-8">
           <button
-            onClick={() => navigate(-1)}
+            onClick={ () => navigate(-1) }
             className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
           >
-            <ArrowLeft size={16} className="mr-1" />
+            <ArrowLeft size={ 16 } className="mr-1" />
             Quay lại
           </button>
           <div className="flex items-center">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mr-2 overflow-hidden">
-              <img src={"/logo.png"} alt="ConnectMe Logo" className="w-full h-full object-cover" />
+              <img src={ "/logo.png" } alt="ConnectMe Logo" className="w-full h-full object-cover" />
             </div>
             <span className="font-semibold text-lg">ConnectMe</span>
           </div>
@@ -122,24 +128,24 @@ const Register = () => {
         <div className="bg-white/80 backdrop-blur-sm border rounded-xl shadow-lg p-8">
           <h1 className="text-2xl font-bold mb-6 text-center">Đăng ký tài khoản</h1>
 
-          {error && (
+          { error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-start">
-              <span className="text-sm">{error}</span>
+              <span className="text-sm">{ error }</span>
             </div>
-          )}
+          ) }
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={ handleSubmit } className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="username" className="text-sm font-medium flex items-center">
-                <User size={16} className="mr-2 text-muted-foreground" />
+                <User size={ 16 } className="mr-2 text-muted-foreground" />
                 Tên đăng nhập
               </label>
               <input
                 id="username"
                 name="username"
                 type="text"
-                value={formData.username}
-                onChange={handleChange}
+                value={ formData.username }
+                onChange={ handleChange }
                 className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                 placeholder="Nhập tên đăng nhập của bạn"
                 required
@@ -148,15 +154,15 @@ const Register = () => {
 
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium flex items-center">
-                <Mail size={16} className="mr-2 text-muted-foreground" />
+                <Mail size={ 16 } className="mr-2 text-muted-foreground" />
                 Email
               </label>
               <input
                 id="email"
                 name="email"
                 type="email"
-                value={formData.email}
-                onChange={handleChange}
+                value={ formData.email }
+                onChange={ handleChange }
                 className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                 placeholder="Nhập địa chỉ email của bạn"
                 required
@@ -165,15 +171,15 @@ const Register = () => {
 
             <div className="space-y-2">
               <label htmlFor="fullName" className="text-sm font-medium flex items-center">
-                <UserCircle size={16} className="mr-2 text-muted-foreground" />
+                <UserCircle size={ 16 } className="mr-2 text-muted-foreground" />
                 Họ và tên
               </label>
               <input
                 id="fullName"
                 name="fullName"
                 type="text"
-                value={formData.fullName}
-                onChange={handleChange}
+                value={ formData.fullName }
+                onChange={ handleChange }
                 className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                 placeholder="Nhập họ và tên đầy đủ của bạn"
                 required
@@ -182,19 +188,19 @@ const Register = () => {
 
             <div className="space-y-2">
               <label htmlFor="password" className="text-sm font-medium flex items-center">
-                <Lock size={16} className="mr-2 text-muted-foreground" />
+                <Lock size={ 16 } className="mr-2 text-muted-foreground" />
                 Mật khẩu
               </label>
               <input
                 id="password"
                 name="password"
                 type="password"
-                value={formData.password}
-                onChange={handleChange}
+                value={ formData.password }
+                onChange={ handleChange }
                 className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                 placeholder="Tạo mật khẩu của bạn"
                 required
-                minLength={8}
+                minLength={ 8 }
               />
               <p className="text-xs text-muted-foreground">Mật khẩu phải có ít nhất 8 ký tự</p>
             </div>
@@ -214,34 +220,37 @@ const Register = () => {
                 className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
               />
               {
-                isUploading && 
+                isUploading &&
                 (
                   <div className="text-xs text-muted-foreground">Đang tải ảnh lên...</div>
                 )
               }
               {
-                avatarPreview && 
+                avatarPreview &&
                 (
-                  <div className="mt-2 flex justify-center">
+                  <div className="mt-2 flex justify-center relative w-20 h-20 mx-auto">
                     <img
                       src={avatarPreview}
                       alt="Avatar preview"
-                      className="w-20 h-20 rounded-full object-cover border"
+                      className="w-20 h-20 rounded-full object-cover border shadow"
                     />
                     <button
                       type="button"
                       onClick={() => 
-                        {
-                          setAvatarPreview("")
-                          setFormData((prev) => ({...prev, avatar: ""}))
-                          if (fileInputRef.current) 
-                            fileInputRef.current.value = null
-                        }
-                      }
-                      className="flex items-center justify-center w-5 h-5 ml-2 bg-red-100 border border-red-200 text-red-500 rounded-full hover:bg-red-200 hover:border-red-400 transition"
+                      {
+                        setAvatarPreview("")
+                        setFormData((prev) => ({...prev, avatar: ""}))
+                        if (fileInputRef.current)
+                          fileInputRef.current.value = null
+                      }}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center bg-gray-300 border border-gray-200 text-white rounded-full shadow hover:bg-gray-400 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 transition z-10 group"
                       title="Xóa ảnh"
+                      tabIndex={0}
                     >
-                      <span className="text-sm font-bold leading-none">✖</span>
+                      <svg className="w-3 h-3" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M7 7l6 6M13 7l-6 6" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                      <span className="sr-only">Xóa ảnh</span>
                     </button>
                   </div>
                 )
@@ -252,23 +261,23 @@ const Register = () => {
               <button
                 type="submit"
                 className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
-                disabled={isLoading}
+                disabled={ isLoading }
               >
-                {isLoading ? (
+                { isLoading ? (
                   <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
                 ) : (
                   <>
-                    <UserPlus size={18} className="mr-2" />
+                    <UserPlus size={ 18 } className="mr-2" />
                     Đăng ký tài khoản
                   </>
-                )}
+                ) }
               </button>
             </div>
           </form>
 
           <div className="mt-8 text-center">
             <p className="text-muted-foreground">
-              Đã có tài khoản?{" "}
+              Đã có tài khoản?{ " " }
               <Link to="/login" className="text-primary hover:underline font-medium">
                 Đăng nhập ngay
               </Link>
@@ -277,7 +286,7 @@ const Register = () => {
         </div>
 
         <div className="mt-8 text-center text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} ConnectMe. Mọi quyền được bảo lưu.
+          &copy; { new Date().getFullYear() } ConnectMe. Mọi quyền được bảo lưu.
         </div>
       </div>
     </div>
