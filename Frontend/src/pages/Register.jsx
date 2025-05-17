@@ -47,7 +47,7 @@ const Register = () => {
         (
           {
             ...prev,
-            avatar: url || "",
+            avatar: url.result || "",
           }
         )
       )
