@@ -38,14 +38,10 @@ public class UserController {
     }
 
     @PutMapping("/update-me")
-    public ResponseEntity<ApiResponse<UserResponse>> updateUser(
-            @RequestPart(value = "file", required = false) MultipartFile avatar,
-            @RequestPart("user") UserUpdateRequest request,
+    public ResponseEntity<ApiResponse<UserResponse>> updateUser(@RequestPart("user") UserUpdateRequest request,
             Authentication auth
-    ) throws Exception {
+    ) {
         Long id = Long.parseLong(auth.getName());
-        String avatarGet = uploadService.uploadFile(avatar);
-        request.setAvatar(avatarGet);
 
         ApiResponse<UserResponse> response = ApiResponse.<UserResponse>builder()
                 .code(0)
