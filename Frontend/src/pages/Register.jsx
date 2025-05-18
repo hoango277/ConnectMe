@@ -205,6 +205,7 @@ const Register = () =>
               <p className="text-xs text-muted-foreground">Mật khẩu phải có ít nhất 8 ký tự</p>
             </div>
 
+            
             <div className="space-y-2">
               <label htmlFor="avatar" className="text-sm font-medium flex items-center">
                 <Image size={16} className="mr-2 text-muted-foreground" />
@@ -217,8 +218,15 @@ const Register = () =>
                 accept="image/*"
                 ref={fileInputRef}
                 onChange={handleAvatarChange}
-                className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                className="hidden"
               />
+              <label
+                htmlFor="avatar"
+                className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg shadow hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition cursor-pointer"
+              >
+                <Image size={20} className="mr-2" />
+                <span>{"Chọn ảnh"}</span>
+              </label>
               {
                 isUploading &&
                 (
