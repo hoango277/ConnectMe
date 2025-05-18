@@ -97,7 +97,7 @@ const CreateMeeting = () => {
         title: "Instant Meeting",
         description: "Instant meeting created on " + new Date().toLocaleString(),
         hostId: formData.hostId,
-        actualStart: dayjs().format("YYYY-MM-DDTHH:mm:ss"), // Instant meeting time in correct format
+        actualStart: null,
         invitedParticipants: []
       }
 

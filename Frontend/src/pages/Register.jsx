@@ -32,17 +32,17 @@ const Register = () =>
     }))
   }
 
-  const handleAvatarChange = async (e) => 
-  {
+  const handleAvatarChange = async (e) => {
     const file = e.target.files[0]
+    if (!file)
+      return
     if (!file)
       return
 
     setIsUploading(true)
     setError(null)
 
-    try 
-    {
+    try {
       const url = await uploadService.uploadImage(file)
       setFormData((prev) =>
       (
@@ -229,11 +229,13 @@ const Register = () =>
               </label>
               {
                 isUploading &&
+                isUploading &&
                 (
                   <div className="text-xs text-muted-foreground">Đang tải ảnh lên...</div>
                 )
               }
               {
+                avatarPreview &&
                 avatarPreview &&
                 (
                   <div className="mt-2 flex justify-center relative w-20 h-20 mx-auto">

@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import ttcs.connectme.dto.request.ForgotPasswordRequest;
@@ -39,8 +41,7 @@ public class UserController {
 
     @PutMapping("/update-me")
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(@RequestPart("user") UserUpdateRequest request,
-            Authentication auth
-    ) {
+            Authentication auth) {
         Long id = Long.parseLong(auth.getName());
 
         ApiResponse<UserResponse> response = ApiResponse.<UserResponse>builder()
@@ -55,8 +56,7 @@ public class UserController {
     @PutMapping("/me/update-password")
     public ResponseEntity<Void> updatePassword(
             @Valid @RequestBody PasswordUpdateRequest request,
-            Authentication auth
-    ) {
+            Authentication auth) {
         Long id = Long.parseLong(auth.getName());
 
         userService.updatePassword(id, request);

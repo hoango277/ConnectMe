@@ -34,7 +34,6 @@ const Dashboard = () => {
     try {
       setStartingMeeting(meetingCode)
       const response = await meetingService.startMeeting(meetingCode)
-      console.log("Meeting started:", response)
 
       // Chuyển hướng đến trang phòng họp sau khi bắt đầu thành công
       navigate(`/meeting/${meetingCode}`)
@@ -63,7 +62,6 @@ const Dashboard = () => {
   }
 
   const getUpcomingMeetings = () => {
-    console.log("Filtering upcoming meetings from:", meetings)
     const now = new Date()
     return meetings.filter((meeting) => {
       // Sử dụng actualStart thay vì scheduledTime, và meetingStatus thay vì status
