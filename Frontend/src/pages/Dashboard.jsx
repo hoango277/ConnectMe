@@ -34,9 +34,28 @@ const Dashboard = () => {
     try {
       setStartingMeeting(meetingCode)
       const response = await meetingService.startMeeting(meetingCode)
-
-      // Chuyển hướng đến trang phòng họp sau khi bắt đầu thành công
-      navigate(`/meeting/${meetingCode}`)
+      
+      if (response.code === 200) {
+        try {
+          // Tự động join meeting cho host
+          const resJoin = await meetingService.joinMeeting(meetingCode)
+          if (resJoin.success) {
+            navigate(`/meeting/${meetingCode}`, { replace: true })
+          } else {
+            throw new Error(resJoin.message || "Failed to join meeting")
+          }
+        } catch (err) {
+          let errorMessage = "Không thể tham gia cuộc họp. Vui lòng kiểm tra mã cuộc họp và thử lại."
+          if (err.message) {
+            errorMessage = err.message
+          } else if (err.response?.data?.message) {
+            errorMessage = err.response.data.message
+          }
+          setError(errorMessage)
+        }
+      } else {
+        throw new Error(response.message || "Failed to start meeting")
+      }
     } catch (error) {
       console.error("Failed to start meeting:", error)
       setError("Failed to start the meeting. Please try again.")
