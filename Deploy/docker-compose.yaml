@@ -20,6 +20,8 @@ services:
       context: ../Backend/ConnectMe
       dockerfile: Dockerfile
     container_name: connectme-backend
+    env_file:
+      - ../Backend/ConnectMe/.env
     depends_on:
       - db
     environment:
