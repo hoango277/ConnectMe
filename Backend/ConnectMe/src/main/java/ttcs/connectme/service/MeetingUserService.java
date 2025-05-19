@@ -20,6 +20,7 @@ import ttcs.connectme.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -46,7 +47,7 @@ public class MeetingUserService {
             request.setInvitationStatus(InvitationStatus.ACCEPTED);
         }
 
-        // Kiểm tra người dùng đã trong cuộc họp chưa
+        // Kiểm tra người dùng đã trong cuộc họp chưa (với isDeleted = false)
         if (meetingUserRepository.existsByMeetingMeetingCodeAndUserIdAndIsDeletedFalse(meetingCode, userId)) {
             throw new AppException(ErrorCode.USER_ALREADY_IN_MEETING);
         }
@@ -60,13 +61,42 @@ public class MeetingUserService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         try {
-            MeetingUserEntity meetingUser = meetingUserMapper.toEntity(request);
-            meetingUser.setMeeting(meeting);
-            meetingUser.setUser(user);
-            meetingUser.setIsDeleted(false);
-            meetingUser.setDeletedAt(null);
-            if (meetingUser.getInvitationStatus() == null) {
-                meetingUser.setInvitationStatus(InvitationStatus.PENDING);
+            // Kiểm tra xem người dùng đã từng tham gia cuộc họp này chưa (kể cả isDeleted = true)
+            Optional<MeetingUserEntity> existingMeetingUser = meetingUserRepository
+                    .findByMeetingMeetingCodeAndUserId(meetingCode, userId);
+
+            MeetingUserEntity meetingUser;
+
+            if (existingMeetingUser.isPresent()) {
+                // Nếu người dùng đã từng tham gia, chỉ cập nhật lại isDeleted = false
+                meetingUser = existingMeetingUser.get();
+                meetingUser.setIsDeleted(false);
+                meetingUser.setDeletedAt(null);
+                meetingUser.setDeletedBy(null);
+                meetingUser.setIsOnline(true);
+                meetingUser.setIsMuted(false);
+                meetingUser.setIsCameraOn(true);
+                meetingUser.setIsScreenSharing(false);
+                meetingUser.setIsSpeaking(false);
+                meetingUser.setJoinTime(LocalDateTime.now());
+                meetingUser.setLastHeartbeat(LocalDateTime.now());
+
+                // Cập nhật thông tin từ request mới nếu có
+                if (request.getInvitationStatus() != null) {
+                    meetingUser.setInvitationStatus(request.getInvitationStatus());
+                }
+                if (request.getRole() != null) {
+                    meetingUser.setRole(request.getRole());
+                }
+            } else {
+                meetingUser = meetingUserMapper.toEntity(request);
+                meetingUser.setMeeting(meeting);
+                meetingUser.setUser(user);
+                meetingUser.setIsDeleted(false);
+                meetingUser.setDeletedAt(null);
+                if (meetingUser.getInvitationStatus() == null) {
+                    meetingUser.setInvitationStatus(InvitationStatus.PENDING);
+                }
             }
 
             MeetingUserEntity savedEntity = meetingUserRepository.save(meetingUser);
@@ -120,17 +150,14 @@ public class MeetingUserService {
                 .stream().map(meetingUserMapper::toResponse).toList();
     }
 
-    public void updateMeetingUserMediaState(MediaStateUpdate update)
-    {
+    public void updateMeetingUserMediaState(MediaStateUpdate update) {
         MeetingUserEntity meetingUser = meetingUserRepository
                 .findByMeetingMeetingCodeAndUserIdAndIsDeletedFalse(update.getMeetingCode(), update.getUserId())
                 .orElseThrow(() -> new AppException(ErrorCode.MEETING_USER_NOT_FOUND));
 
-        if(update.getMediaType().equals("video"))
-        {
+        if (update.getMediaType().equals("video")) {
             meetingUser.setIsCameraOn(update.isEnabled());
-        }
-        else{
+        } else {
             meetingUser.setIsMuted(update.isEnabled());
         }
         meetingUserRepository.save(meetingUser);

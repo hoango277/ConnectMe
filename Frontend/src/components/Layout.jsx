@@ -76,7 +76,19 @@ const Layout = ({ children }) => {
                   className="flex items-center gap-2 p-2 rounded-md hover:bg-accent"
                 >
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                    {currentUser?.name?.charAt(0).toUpperCase() || "U"}
+                    {
+                      currentUser?.avatar ?
+                        (
+                          <img
+                            src={currentUser?.avatar}
+                            alt={currentUser?.name?.charAt(0).toUpperCase()}
+                            className="w-full h-full object-cover rounded-full"
+                          />
+                        ) :
+                        (
+                          currentUser?.name?.charAt(0).toUpperCase()
+                        )
+                    }
                   </div>
                   <span className="text-sm font-medium">{currentUser?.name}</span>
                   <ChevronDown size={16} />

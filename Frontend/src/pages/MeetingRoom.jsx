@@ -1049,7 +1049,7 @@ const MeetingRoom = () => {
 
               return (
                 <div key={participant.id} className="relative bg-muted rounded-lg overflow-hidden aspect-video">
-                  <video
+                    {participant.videoEnabled ? (<video
                     ref={(el) => {
                       if (!el) return;
 
@@ -1304,7 +1304,16 @@ const MeetingRoom = () => {
                     muted={isCurrentUser} // Mute only the current user's video
                     playsInline
                     className="w-full h-full object-cover"
-                  />
+                  />) :(
+                    <div className="w-full h-full flex items-center justify-center bg-muted">
+                      <img 
+                        src={participant.user?.avatar || `https://ui-avatars.com/api/?name=${participant.name}`}
+                        alt={participant.name}
+                        className="w-40 h-40 rounded-full object-cover"
+                      />
+                    </div>
+                  )
+            }
                   <div className="absolute bottom-2 left-2 bg-background/80 px-2 py-1 rounded text-sm font-medium">
                     {participant.name || "Unknown"} {isCurrentUser && "(You)"} {!participant.videoEnabled && "(Video off)"}
                   </div>
@@ -1347,9 +1356,17 @@ const MeetingRoom = () => {
                 {participants.map((participant) => (
                   <div key={participant.id} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
+                    {participant.user?.avatar ? (
+                      <img 
+                        src={participant.user.avatar}
+                        alt={participant.name}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                         {(participant.name || "U").charAt(0).toUpperCase()}
                       </div>
+                    )}
                       <div>
                         <p className="font-medium text-sm">
                           {participant.name || "Unknown"}
