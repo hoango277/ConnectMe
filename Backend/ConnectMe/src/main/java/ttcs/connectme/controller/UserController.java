@@ -6,12 +6,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import ttcs.connectme.dto.request.ForgotPasswordRequest;
 import ttcs.connectme.dto.request.PasswordUpdateRequest;
 import ttcs.connectme.dto.request.UserUpdateRequest;
 import ttcs.connectme.dto.response.ApiResponse;
 import ttcs.connectme.dto.response.UserResponse;
+import ttcs.connectme.service.UploadService;
 import ttcs.connectme.service.UserService;
 
 @RestController
@@ -20,6 +24,7 @@ import ttcs.connectme.service.UserService;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class UserController {
     UserService userService;
+    private final UploadService uploadService;
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser(Authentication auth) {
@@ -34,11 +39,9 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/me")
-    public ResponseEntity<ApiResponse<UserResponse>> updateUser(
-            @Valid @RequestBody UserUpdateRequest request,
-            Authentication auth
-    ) {
+    @PutMapping("/update-me")
+    public ResponseEntity<ApiResponse<UserResponse>> updateUser(@RequestPart("user") UserUpdateRequest request,
+            Authentication auth) {
         Long id = Long.parseLong(auth.getName());
 
         ApiResponse<UserResponse> response = ApiResponse.<UserResponse>builder()
@@ -53,8 +56,7 @@ public class UserController {
     @PutMapping("/me/update-password")
     public ResponseEntity<Void> updatePassword(
             @Valid @RequestBody PasswordUpdateRequest request,
-            Authentication auth
-    ) {
+            Authentication auth) {
         Long id = Long.parseLong(auth.getName());
 
         userService.updatePassword(id, request);

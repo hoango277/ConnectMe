@@ -90,6 +90,7 @@ public class AuthService {
         userInfo.setId(user.getId());
         userInfo.setName(user.getFullName());
         userInfo.setEmail(user.getEmail());
+        userInfo.setAvatar(user.getAvatar());
         return LoginResponse.builder()
                 .token(token)
                 .user(userInfo)
