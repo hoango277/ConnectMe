@@ -2,64 +2,6 @@ import { api } from "./api"
 import { getCurrentUserId } from "../utils/auth"
 import { webrtcService } from "./webrtcService"
 
-// // Mock data for development without backend
-// const mockMeetings = [
-//   {
-//     id: "meeting-1",
-//     title: "Weekly Team Standup",
-//     description: "Weekly team standup meeting to discuss progress and blockers",
-//     scheduledTime: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
-//     duration: 30,
-//     meetingCode: "abc-123-xyz",
-//     hostId: "mock-user-1",
-//     status: "scheduled",
-//     participantCount: 5
-//   },
-//   {
-//     id: "meeting-2",
-//     title: "Project Review",
-//     description: "Monthly project review with stakeholders",
-//     scheduledTime: new Date(Date.now() + 86400000).toISOString(), // 1 day from now
-//     duration: 60,
-//     meetingCode: "def-456-uvw",
-//     hostId: "mock-user-1",
-//     status: "scheduled",
-//     participantCount: 8
-//   },
-//   {
-//     id: "meeting-3",
-//     title: "Interview: Frontend Developer",
-//     description: "Interview candidate for the Frontend Developer position",
-//     scheduledTime: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-//     duration: 45,
-//     meetingCode: "ghi-789-rst",
-//     hostId: "mock-user-1",
-//     status: "ended",
-//     participantCount: 3
-//   }
-// ];
-
-// const mockParticipants = [
-//   {
-//     id: "mock-user-1",
-//     name: "Test User",
-//     audioEnabled: true,
-//     videoEnabled: true
-//   },
-//   {
-//     id: "participant-1",
-//     name: "John Doe",
-//     audioEnabled: true,
-//     videoEnabled: true
-//   },
-//   {
-//     id: "participant-2",
-//     name: "Jane Smith",
-//     audioEnabled: false,
-//     videoEnabled: true
-//   }
-// ];
-
 export const meetingService = {
   // Create a new meeting
   createMeeting: async (meetingData) => {
@@ -127,12 +69,7 @@ export const meetingService = {
       if (meetingResponse.code !== 200) {
         throw new Error(meetingResponse.message || "Meeting not found")
       }
-      console.log(meetingResponse)
       return meetingResponse;
-
-      // Then get the full meeting details using the ID
-      // const response = await api.get(`/api/meetings/${meetingResponse.result.meetingCode}`)
-      // return response.data
     } catch (error) {
       throw error
     }
@@ -165,7 +102,6 @@ export const meetingService = {
       try {
         console.log("Sending join request to API:", meetingCode, userId, meetingUserRequest);
         const addUserResponse = await api.post(`/api/meetings/${meetingCode}/join/${userId}`, meetingUserRequest)
-        console.log("Join API response:", addUserResponse);
         
         if (!addUserResponse.data || addUserResponse.data.code !== 200) {
           const errorMessage = addUserResponse.data?.message || "Failed to join meeting";

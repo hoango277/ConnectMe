@@ -20,13 +20,13 @@ export const AuthProvider = ({ children }) => {
     const handleAuthExpired = () => {
       setCurrentUser(null)
       setIsAuthenticated(false)
-      
+
       // Use navigate from react-router to redirect
       navigate("/login")
     }
 
     window.addEventListener("auth:expired", handleAuthExpired)
-    
+
     return () => {
       window.removeEventListener("auth:expired", handleAuthExpired)
     }
@@ -80,9 +80,9 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     setError(null)
     try {
-    
+
       const response = await api.post("/api/auth/register", userData)
-  
+
       return {
         success: true,
         message: response.data?.message || "Registration successful",
@@ -91,12 +91,12 @@ export const AuthProvider = ({ children }) => {
       setError(error.response?.data?.message || "Registration failed")
       return { success: false, message: error.response?.data?.message || "Registration failed" }
     }
-  }  
+  }
 
   const logout = async () => {
     try {
       await api.post("/api/auth/logout") // backend clears cookie
-    } catch {} finally {
+    } catch { } finally {
       setCurrentUser(null)
       setIsAuthenticated(false)
       // Use navigate in the context
@@ -115,7 +115,7 @@ export const AuthProvider = ({ children }) => {
         }))
         return { ...currentUser, ...userData }
       }
-      
+
       const response = await api.put("/api/users/me", userData)
       setCurrentUser(response.data)
       return response.data

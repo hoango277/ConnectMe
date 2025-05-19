@@ -50,7 +50,7 @@ const Login = () => {
       setIsLoading(false)
     }
   }
-  
+
   const handleGoogleLogin = () => {
     // Chuyển hướng đến endpoint OAuth2 của Google trên backend
     window.location.href = "http://localhost:8080/api/auth/google-login";
@@ -129,8 +129,8 @@ const Login = () => {
               </div>
 
               <div className="pt-2">
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
                   disabled={isLoading}
                 >
@@ -145,15 +145,15 @@ const Login = () => {
                 </button>
               </div>
             </form>
-            
+
             <div className="mt-5 flex items-center justify-center">
               <div className="border-t w-full"></div>
               <span className="px-4 text-sm text-muted-foreground bg-white">hoặc</span>
               <div className="border-t w-full"></div>
             </div>
-            
+
             <div className="mt-5">
-              <button 
+              <button
                 onClick={handleGoogleLogin}
                 className="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
               >

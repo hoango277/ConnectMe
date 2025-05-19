@@ -18,5 +18,6 @@ public class LoginResponse {
         Long id;
         String name;
         String email;
+        String avatar;
     }
 }

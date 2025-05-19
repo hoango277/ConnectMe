@@ -18,21 +18,21 @@ axiosInstance.interceptors.response.use(
   (error) => {
     // Lấy URL của request gây lỗi
     const requestUrl = error.config?.url;
-    
+
     // Chỉ xử lý lỗi 401 nếu không phải từ API kiểm tra profile
-    if (error.response?.status === 401 && 
-        !window.location.pathname.includes('/login') &&
-        !requestUrl.includes('/api/users/me')) {
+    if (error.response?.status === 401 &&
+      !window.location.pathname.includes('/login') &&
+      !requestUrl.includes('/api/users/me')) {
       // Clear user data
       localStorage.removeItem("user")
-      
+
       // Show alert and set a flag in localStorage that we need to redirect
       alert("Your session has expired or you are not authorized. Please login again.")
-      
+
       // Instead of directly using window.location.href, we'll set a flag
       // This allows React Router to handle the navigation properly
       localStorage.setItem(AUTH_STORAGE_KEY, "true")
-      
+
       // Let the AuthContext handle the redirect with navigate
       window.dispatchEvent(new Event("auth:expired"))
     }

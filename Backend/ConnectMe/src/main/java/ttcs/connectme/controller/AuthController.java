@@ -73,7 +73,8 @@ public class AuthController {
     }
 
     @GetMapping("/validate-token")
-    public ResponseEntity<ApiResponse<LoginResponse>> validateToken(HttpServletResponse httpServletResponse, @RequestHeader("Authorization") String authorizationHeader) {
+    public ResponseEntity<ApiResponse<LoginResponse>> validateToken(HttpServletResponse httpServletResponse,
+            @RequestHeader("Authorization") String authorizationHeader) {
 
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);

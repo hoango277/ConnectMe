@@ -54,5 +54,17 @@ export const authService = {
     {
       throw error
     }
+  },
+
+  updateUser: async (username, email, fullName, avatar) => 
+  {
+    try
+    {
+      await api.put("/api/users/update-me", {username, email, fullName, avatar})
+    }
+    catch (error)
+    {
+      throw error
+    }
   }
 } 

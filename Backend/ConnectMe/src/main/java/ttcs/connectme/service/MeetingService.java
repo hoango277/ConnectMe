@@ -10,12 +10,14 @@ import ttcs.connectme.dto.response.ApiResponse;
 import ttcs.connectme.dto.response.MeetingResponse;
 import ttcs.connectme.entity.MeetingEntity;
 import ttcs.connectme.entity.UserEntity;
+import ttcs.connectme.entity.MeetingUserEntity;
 import ttcs.connectme.enums.ErrorCode;
 import ttcs.connectme.enums.MeetingStatus;
 import ttcs.connectme.exception.AppException;
 import ttcs.connectme.mapper.MeetingMapper;
 import ttcs.connectme.repository.MeetingRepository;
 import ttcs.connectme.repository.UserRepository;
+import ttcs.connectme.repository.MeetingUserRepository;
 import ttcs.connectme.utils.MeetingCodeGenerator;
 
 import java.time.LocalDateTime;
@@ -28,6 +30,7 @@ public class MeetingService {
 
     private final MeetingRepository meetingRepository;
     private final UserRepository userRepository;
+    private final MeetingUserRepository meetingUserRepository;
     private final MeetingMapper meetingMapper;
     private final MeetingCodeGenerator codeGenerator;
 
@@ -213,6 +216,15 @@ public class MeetingService {
         return meetings.stream().map(meeting -> {
             MeetingResponse response = meetingMapper.toResponse(meeting);
             response.setHostId(host.getId());
+
+            String meetingCode = meeting.getMeetingCode();
+            List<MeetingUserEntity> meetingUsers = meetingUserRepository
+                    .getAllByMeetingMeetingCode(meetingCode);
+            Integer participantCount = meetingUsers.size();
+
+            response.setCurrentParticipants(participantCount);
+            response.setTotalParticipants(participantCount);
+
             return ApiResponse.<MeetingResponse>builder()
                     .code(200)
                     .message("Success")
