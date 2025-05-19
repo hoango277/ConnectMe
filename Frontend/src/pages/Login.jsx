@@ -53,7 +53,7 @@ const Login = () => {
 
   const handleGoogleLogin = () => {
     // Chuyển hướng đến endpoint OAuth2 của Google trên backend
-    window.location.href = "http://localhost:8080/api/auth/google-login";
+    window.location.href = "https://hoangotech.id.vn:8080/api/auth/google-login";
   }
 
   return (
